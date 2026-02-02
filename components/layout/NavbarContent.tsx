@@ -146,11 +146,23 @@ export function NavbarContent({ userEmail, userName, currentCompany, availableCo
                             <div>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Apps</h3>
                                 <div className="space-y-1">
-                                    {/* Timesheets */}
+                                    {/* Timesheets Sub-links */}
                                     {enabledApps.includes('timesheets') && (
-                                        <Link onClick={() => setIsOpen(false)} href="/timesheets/my" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/timesheets')}`}>
-                                            <Clock className="w-4 h-4" /> Timesheets
-                                        </Link>
+                                        <>
+                                            <Link onClick={() => setIsOpen(false)} href="/timesheets/my" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/timesheets/my')}`}>
+                                                <Clock className="w-4 h-4" /> My Timesheets
+                                            </Link>
+                                            {permissions.canManageAny && (
+                                                <>
+                                                    <Link onClick={() => setIsOpen(false)} href="/timesheets/approvals" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/timesheets/approvals')}`}>
+                                                        <CheckSquare className="w-4 h-4" /> Approvals
+                                                    </Link>
+                                                    <Link onClick={() => setIsOpen(false)} href="/timesheets/reports" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/timesheets/reports')}`}>
+                                                        <FileText className="w-4 h-4" /> Reports
+                                                    </Link>
+                                                </>
+                                            )}
+                                        </>
                                     )}
 
                                     {/* Documents */}

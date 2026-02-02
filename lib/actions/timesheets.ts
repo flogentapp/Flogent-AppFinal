@@ -176,6 +176,25 @@ export async function getReportData() {
 }
 
 
+export async function submitWeek(dateISO: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Use the RPC function we added in migrations
+  const { error } = await supabase.rpc('submit_week', {
+    p_user_id: user.id,
+    p_date: dateISO
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/timesheets/my')
+  revalidatePath('/timesheets/approvals')
+  revalidatePath('/timesheets/reports')
+  return { success: true }
+}
+
 export async function approveTimeEntry(id: string) {
   return updateTimesheetStatus(id, 'approved')
 }

@@ -2,8 +2,14 @@
 import { Button } from '@/components/ui/Button'
 import { Check, X, Clock } from 'lucide-react'
 import { format } from 'date-fns'
+import { getUserPermissions } from '@/lib/actions/permissions'
 
 export default async function ApprovalsPage() {
+  const permissions = await getUserPermissions()
+  if (!permissions.canManageAny) {
+    return <div className='p-8 text-center text-gray-500'>Access Denied: You do not have approval permissions.</div>
+  }
+
   const pending = await getPendingApprovals()
 
   return (

@@ -2,15 +2,18 @@
 
 import { useState } from 'react'
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus, Eye } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Eye, Send, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { AddEntryModal } from './AddEntryModal'
 import { DayDetailModal } from './DayDetailModal'
 import { cn } from '@/lib/utils'
+import { submitWeek } from '@/lib/actions/timesheets'
+import { toast } from 'sonner'
 
 export function WeekView({ entries, projects, user, companies }: any) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // NEW STATE FOR DETAILS
   const [viewDate, setViewDate] = useState<Date | null>(null)
@@ -24,6 +27,11 @@ export function WeekView({ entries, projects, user, companies }: any) {
     return entries.filter((e: any) => isSameDay(new Date(e.date), date))
   }
 
+  const weekTotal = entries.filter((e: any) => {
+    const d = new Date(e.date)
+    return d >= startDate && d <= addDays(startDate, 6)
+  }).reduce((sum: number, e: any) => sum + e.hours, 0)
+
   // Calculate daily totals
   const getDailyTotal = (date: Date) => {
     return getDayEntries(date).reduce((sum: number, e: any) => sum + e.hours, 0)
@@ -33,6 +41,23 @@ export function WeekView({ entries, projects, user, companies }: any) {
   const openDayDetails = (date: Date) => {
     setViewDate(date)
     setIsViewOpen(true)
+  }
+
+  const handleSubmitWeek = async () => {
+    if (weekTotal === 0) {
+      toast.error('No hours to submit for this week.')
+      return
+    }
+
+    setSubmitting(true)
+    const res = await submitWeek(format(startDate, 'yyyy-MM-dd'))
+    setSubmitting(false)
+
+    if (res?.error) {
+      toast.error(res.error)
+    } else {
+      toast.success('Week submitted for approval!')
+    }
   }
 
   return (
@@ -52,12 +77,30 @@ export function WeekView({ entries, projects, user, companies }: any) {
             </Button>
           </div>
           <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>Today</Button>
+
+          <div className="h-8 w-px bg-gray-100 mx-2"></div>
+
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Weekly Total</span>
+            <span className="text-xl font-black text-indigo-600 leading-none">{weekTotal.toFixed(1)}<span className="text-xs font-bold text-gray-400 ml-0.5">h</span></span>
+          </div>
         </div>
 
-        <Button onClick={() => setIsAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200">
-          <Plus className="w-4 h-4 mr-2" />
-          Log Time
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={handleSubmitWeek}
+            disabled={submitting || weekTotal === 0}
+            className="border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+            Submit Week
+          </Button>
+          <Button onClick={() => setIsAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200">
+            <Plus className="w-4 h-4 mr-2" />
+            Log Time
+          </Button>
+        </div>
       </div>
 
       {/* Week Grid */}
