@@ -10,7 +10,7 @@ export async function addMemberToProject(projectId: string, userId: string) {
 
   // 1. Get Tenant ID (Required by your DB schema)
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
-  
+
   if (!profile) return { error: 'Profile not found' }
 
   // 2. Insert into 'project_memberships' (Your existing table)
@@ -19,33 +19,33 @@ export async function addMemberToProject(projectId: string, userId: string) {
     tenant_id: profile.tenant_id,
     project_id: projectId,
     user_id: userId,
-    role: 'User', 
+    role: 'User',
     created_by: user.id
   })
 
   if (error) {
-      console.error('Add Member Error:', error)
-      return { error: error.message }
+    console.error('Add Member Error:', error)
+    return { error: error.message }
   }
 
-  revalidatePath(\/project/\\)
+  revalidatePath(`/admin/projects/${projectId}`)
   return { success: true }
 }
 
 export async function removeMemberFromProject(membershipId: string, projectId: string) {
   const supabase = await createClient()
-  
+
   const { error } = await supabase.from('project_memberships').delete().eq('id', membershipId)
 
   if (error) return { error: error.message }
 
-  revalidatePath(\/project/\\)
+  revalidatePath(`/admin/projects/${projectId}`)
   return { success: true }
 }
 
 export async function getProjectMembers(projectId: string) {
   const supabase = await createClient()
-  
+
   // Fetch membership + profile details
   const { data } = await supabase
     .from('project_memberships')
@@ -57,7 +57,7 @@ export async function getProjectMembers(projectId: string) {
 
 export async function getAvailableUsers(tenantId: string) {
   const supabase = await createClient()
-  
+
   // Get all active users in the company
   const { data } = await supabase
     .from('profiles')
