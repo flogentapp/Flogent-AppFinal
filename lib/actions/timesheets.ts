@@ -26,6 +26,7 @@ export async function logTime(formData: FormData) {
   }
 
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile) return { error: 'Profile not found' }
 
   // INSERT into 'time_entries' (Correct Table)
   const { error } = await supabase.from('time_entries').insert({
@@ -107,6 +108,7 @@ export async function getReportData() {
   if (!user) return []
 
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile) return []
 
   const { data } = await supabase
     .from('time_entries') // Updated Table
