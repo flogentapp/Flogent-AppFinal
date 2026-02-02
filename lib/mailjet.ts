@@ -1,16 +1,13 @@
 ﻿// @ts-nocheck
-const MJ_API_KEY = process.env.MJ_API_KEY
-const MJ_API_SECRET = process.env.MJ_API_SECRET
-
-export async function sendInvitationEmail(toEmail, inviteLink, inviterName) { /* Legacy */ }
-
 export async function sendCredentialsEmail(toEmail, tempPassword, inviterName, userName, tenantId) {
+    const MJ_API_KEY = process.env.MJ_API_KEY
+    const MJ_API_SECRET = process.env.MJ_API_SECRET
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
     if (!MJ_API_KEY || !MJ_API_SECRET) {
         console.error('❌ Mailjet Keys Missing')
-        return { success: false, error: 'Server Config Error: Missing Mailjet Keys' }
+        return { success: false, error: 'Server Config Error: Missing Mailjet Keys (Vercel ENV not set)' }
     }
-
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
     try {
         const auth = Buffer.from(MJ_API_KEY + ':' + MJ_API_SECRET).toString('base64')
