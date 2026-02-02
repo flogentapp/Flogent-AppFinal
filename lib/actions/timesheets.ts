@@ -121,6 +121,19 @@ export async function approveTimeEntry(id: string) {
   return updateTimesheetStatus(id, 'approved')
 }
 
+
 export async function rejectTimeEntry(id: string, reason?: string) {
   return updateTimesheetStatus(id, 'rejected')
+}
+
+export async function deleteTimeEntry(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { error } = await supabase.from('time_entries').delete().eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/timesheets/my')
+  return { success: true }
 }
