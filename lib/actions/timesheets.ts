@@ -61,6 +61,7 @@ export async function getPendingApprovals() {
   if (!user) return []
 
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile) return []
 
   const { data } = await supabase
     .from('time_entries') // Updated Table
