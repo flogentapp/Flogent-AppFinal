@@ -13,20 +13,20 @@ export async function logTime(formData: FormData) {
   const dateStr = formData.get('date') as string
   const hours = parseFloat(formData.get('hours') as string)
   const description = formData.get('description') as string
-  
+
   // Additional Work Logic
   const isAdditionalWork = formData.get('is_additional_work') === 'on'
   const additionalWorkDesc = formData.get('additional_work_reason') as string // Form sends 'reason', DB needs 'description'
 
   if (!projectId || !dateStr || !hours) return { error: 'Missing fields' }
-  
+
   // Validation
   if (isAdditionalWork && !additionalWorkDesc) {
-      return { error: 'Please explain why this is Additional Work.' }
+    return { error: 'Please explain why this is Additional Work.' }
   }
 
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
-  
+
   // INSERT into 'time_entries' (Correct Table)
   const { error } = await supabase.from('time_entries').insert({
     user_id: user.id,
@@ -46,7 +46,7 @@ export async function logTime(formData: FormData) {
     console.error('Log Time Error:', error)
     return { error: error.message }
   }
-  
+
   revalidatePath('/timesheets/my')
   revalidatePath('/timesheets/approvals')
   revalidatePath('/timesheets/reports')
@@ -59,7 +59,7 @@ export async function getPendingApprovals() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
-  
+
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
 
   const { data } = await supabase
@@ -77,23 +77,23 @@ export async function getPendingApprovals() {
 export async function updateTimesheetStatus(id: string, status: 'approved' | 'rejected') {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
-  const updatePayload: any = { 
-      status: status,
-      updated_at: new Date().toISOString(),
-      updated_by: user?.id
+
+  const updatePayload: any = {
+    status: status,
+    updated_at: new Date().toISOString(),
+    updated_by: user?.id
   }
 
   if (status === 'approved') {
-      updatePayload.approved_at = new Date().toISOString()
-      updatePayload.approved_by = user?.id
+    updatePayload.approved_at = new Date().toISOString()
+    updatePayload.approved_by = user?.id
   } else if (status === 'rejected') {
-      updatePayload.rejected_at = new Date().toISOString()
-      updatePayload.rejected_by = user?.id
+    updatePayload.rejected_at = new Date().toISOString()
+    updatePayload.rejected_by = user?.id
   }
 
   const { error } = await supabase.from('time_entries').update(updatePayload).eq('id', id)
-  
+
   if (error) return { error: error.message }
   revalidatePath('/timesheets/approvals')
   revalidatePath('/timesheets/my')
@@ -104,7 +104,7 @@ export async function getReportData() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
-  
+
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
 
   const { data } = await supabase
@@ -115,4 +115,12 @@ export async function getReportData() {
     .order('entry_date', { ascending: false })
 
   return data?.map(d => ({ ...d, date: d.entry_date })) || []
+}
+
+export async function approveTimeEntry(id: string) {
+  return updateTimesheetStatus(id, 'approved')
+}
+
+export async function rejectTimeEntry(id: string, reason?: string) {
+  return updateTimesheetStatus(id, 'rejected')
 }
