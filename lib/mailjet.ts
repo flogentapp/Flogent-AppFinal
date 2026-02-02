@@ -10,6 +10,8 @@ export async function sendCredentialsEmail(toEmail, tempPassword, inviterName, u
         return { success: false, error: 'Server Config Error: Missing Mailjet Keys' }
     }
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
     try {
         const auth = Buffer.from(MJ_API_KEY + ':' + MJ_API_SECRET).toString('base64')
         const response = await fetch('https://api.mailjet.com/v3.1/send', {
@@ -28,9 +30,9 @@ export async function sendCredentialsEmail(toEmail, tempPassword, inviterName, u
                             <p><strong>Password:</strong> ${tempPassword}</p>
                             <p><strong>Workspace ID:</strong> <code>${tenantId}</code></p>
                         </div>
-                        <p><a href="http://localhost:3000/login">Login Here</a></p>
+                        <p><a href="${siteUrl}/login">Login Here</a></p>
                         <hr>
-                        <p>Link broken? Go to <a href="http://localhost:3000/onboarding">Join Page</a> and enter Workspace ID.</p>
+                        <p>Link broken? Go to ${siteUrl}/onboarding and enter your Workspace ID.</p>
                     `
                 }]
             })

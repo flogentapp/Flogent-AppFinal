@@ -1,60 +1,83 @@
 import { createClient } from '@/lib/supabase/server'
 import { UsersClient } from '@/components/admin/UsersClient'
+import { getUserPermissions } from '@/lib/actions/permissions'
 
 export default async function UsersPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // Get tenant_id (do NOT select current_company_id here)
-  const { data: profile, error: profileError } = await supabase
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return <div className="p-8 text-center text-gray-500">Access Denied: You do not have permissions to manage users and roles.</div>
+  }
+
+  // Get tenant_id
+  const { data: profile } = await supabase
     .from('profiles')
     .select('tenant_id')
     .eq('id', user.id)
     .single()
 
-  if (profileError || !profile?.tenant_id) {
-    return (
-      <div className="p-8">
-        <div className="text-sm text-red-600">Failed to load profile tenant_id: {profileError?.message || 'No tenant_id found'}</div>
-      </div>
-    )
-  }
+  if (!profile?.tenant_id) return <div>No tenant found.</div>
 
-  // Parallel fetch: Companies & Users (No waterfall)
-  const [
-    { data: companies, error: companiesError },
-    { data: users, error: usersError }
-  ] = await Promise.all([
-    supabase
+  const isOwner = permissions.isOwner
+
+  // 1. Fetch accessible companies
+  let companies: any[] = []
+  if (isOwner) {
+    const { data } = await supabase
       .from('companies')
       .select('id, name, code')
       .eq('tenant_id', profile.tenant_id)
-      .order('name'),
-    supabase
+      .order('name')
+    companies = data || []
+  } else {
+    const { data: assignments } = await supabase
+      .from('user_role_assignments')
+      .select('scope_id')
+      .eq('user_id', user.id)
+      .eq('scope_type', 'company')
+    const ids = assignments?.map(a => a.scope_id) || []
+    if (ids.length > 0) {
+      const { data } = await supabase
+        .from('companies')
+        .select('id, name, code')
+        .in('id', ids)
+        .order('name')
+      companies = data || []
+    }
+  }
+
+  // 2. Fetch users
+  const currentCompanyId = user.user_metadata.current_company_id || companies?.[0]?.id || null
+
+  let users: any[] = []
+  if (isOwner) {
+    // Owner sees ALL users in the tenant
+    const { data } = await supabase
       .from('profiles')
       .select('id, email, first_name, last_name, status')
       .eq('tenant_id', profile.tenant_id)
       .order('first_name')
-  ])
-
-  if (companiesError) {
-    return (
-      <div className="p-8">
-        <div className="text-sm text-red-600">Failed to load companies: {companiesError.message}</div>
-      </div>
-    )
+    users = data || []
+  } else if (currentCompanyId) {
+    // Non-owners only see users in the current company context
+    const { data: assignments } = await supabase
+      .from('user_role_assignments')
+      .select('user_id')
+      .eq('scope_id', currentCompanyId)
+      .eq('scope_type', 'company')
+    const userIds = assignments?.map(a => a.user_id) || []
+    if (userIds.length > 0) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name, status')
+        .in('id', userIds)
+        .order('first_name')
+      users = data || []
+    }
   }
-
-  if (usersError) {
-    return (
-      <div className="p-8">
-        <div className="text-sm text-red-600">Failed to load users: {usersError.message}</div>
-      </div>
-    )
-  }
-
-  const currentCompanyId = companies?.[0]?.id || null
 
   // Load projects for current company
   let projects: any[] = []

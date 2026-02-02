@@ -1,11 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { NavbarContent } from './NavbarContent'
+import { getUserPermissions } from '@/lib/actions/permissions'
 
 export async function AppNavbar() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return null
+
+    // Fetch permissions
+    const permissions = await getUserPermissions()
 
     // 1. Try to fetch Profile (Allow failure)
     const { data: profile } = await supabase
@@ -14,16 +18,52 @@ export async function AppNavbar() {
         .eq('id', user.id)
         .single()
 
-    // 2. Fetch Companies (Only if we have a tenant)
+    // 2. Fetch Companies
     let companies: any[] = []
     if (profile?.tenant_id) {
-        const { data } = await supabase
-            .from('companies')
-            .select('id, name')
-            .eq('tenant_id', profile.tenant_id)
-            .eq('status', 'active')
-            .order('name')
-        companies = data || []
+        // Check if user is Tenant Owner
+        const { data: tenant } = await supabase
+            .from('tenants')
+            .select('owner_user_id')
+            .eq('id', profile.tenant_id)
+            .single()
+
+        const isOwner = tenant?.owner_user_id === user.id
+
+        if (isOwner) {
+            // Owner sees all companies in tenant
+            const { data } = await supabase
+                .from('companies')
+                .select('id, name')
+                .eq('tenant_id', profile.tenant_id)
+                .eq('status', 'active')
+                .order('name')
+            companies = data || []
+        } else {
+            // Non-owners only see companies they have a role in
+            const { data: assignments } = await supabase
+                .from('user_role_assignments')
+                .select('scope_id')
+                .eq('user_id', user.id)
+                .eq('scope_type', 'company')
+
+            let allowedIds = assignments?.map(a => a.scope_id) || []
+
+            // Fallback: Also include the company from their profile (for invited users)
+            if (profile.current_company_id && !allowedIds.includes(profile.current_company_id)) {
+                allowedIds.push(profile.current_company_id)
+            }
+
+            if (allowedIds.length > 0) {
+                const { data } = await supabase
+                    .from('companies')
+                    .select('id, name')
+                    .in('id', allowedIds)
+                    .eq('status', 'active')
+                    .order('name')
+                companies = data || []
+            }
+        }
     }
 
     // 3. Fallback defaults (Ensures Navbar ALWAYS renders)
@@ -56,6 +96,7 @@ export async function AppNavbar() {
             currentCompany={currentCompany}
             availableCompanies={companies}
             enabledApps={enabledApps}
+            permissions={permissions}
         />
     )
 }

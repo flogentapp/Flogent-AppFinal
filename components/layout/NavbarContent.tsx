@@ -7,6 +7,8 @@ import { useState } from 'react'
 import { logout } from '@/lib/actions/auth'
 import { switchCompany } from '@/lib/actions/user'
 
+import { UserPermissions } from '@/lib/actions/permissions'
+
 type Company = { id: string; name: string }
 
 type NavbarContentProps = {
@@ -15,9 +17,10 @@ type NavbarContentProps = {
     currentCompany: Company
     availableCompanies: Company[]
     enabledApps: string[]
+    permissions: UserPermissions
 }
 
-export function NavbarContent({ userEmail, userName, currentCompany, availableCompanies, enabledApps }: NavbarContentProps) {
+export function NavbarContent({ userEmail, userName, currentCompany, availableCompanies, enabledApps, permissions }: NavbarContentProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false)
     const pathname = usePathname()
@@ -84,8 +87,8 @@ export function NavbarContent({ userEmail, userName, currentCompany, availableCo
                                                         setIsCompanyMenuOpen(false)
                                                     }}
                                                     className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-between ${c.id === currentCompany.id
-                                                            ? 'bg-indigo-50 text-indigo-700'
-                                                            : 'text-gray-600 hover:bg-gray-50'
+                                                        ? 'bg-indigo-50 text-indigo-700'
+                                                        : 'text-gray-600 hover:bg-gray-50'
                                                         }`}
                                                 >
                                                     <span className="truncate">{c.name}</span>
@@ -170,20 +173,31 @@ export function NavbarContent({ userEmail, userName, currentCompany, availableCo
                                     )}
                                 </div>
 
-                                <div className="mt-6">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Management</h3>
-                                    <div className="space-y-1">
-                                        <Link onClick={() => setIsOpen(false)} href="/admin/companies" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/admin/companies')}`}>
-                                            <Shield className="w-4 h-4" /> Companies & Depts
-                                        </Link>
-                                        <Link onClick={() => setIsOpen(false)} href="/admin/users" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/admin/users')}`}>
-                                            <UserCog className="w-4 h-4" /> Users & Roles
-                                        </Link>
-                                        <Link onClick={() => setIsOpen(false)} href="/admin/apps" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/admin/apps')}`}>
-                                            <Package className="w-4 h-4" /> App Subscriptions
-                                        </Link>
+                                {permissions.canManageAny && (
+                                    <div className="mt-6">
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Management</h3>
+                                        <div className="space-y-1">
+                                            {(permissions.isOwner || permissions.isCEO || permissions.isDepartmentHead) && (
+                                                <Link onClick={() => setIsOpen(false)} href="/admin/companies" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/admin/companies')}`}>
+                                                    <Shield className="w-4 h-4" /> Companies & Depts
+                                                </Link>
+                                            )}
+                                            {(permissions.isOwner || permissions.isCEO) && (
+                                                <Link onClick={() => setIsOpen(false)} href="/admin/users" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/admin/users')}`}>
+                                                    <UserCog className="w-4 h-4" /> Users & Roles
+                                                </Link>
+                                            )}
+                                            <Link onClick={() => setIsOpen(false)} href="/admin/projects" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/admin/projects')}`}>
+                                                <CheckSquare className="w-4 h-4" /> Projects Management
+                                            </Link>
+                                            {permissions.isOwner && (
+                                                <Link onClick={() => setIsOpen(false)} href="/admin/apps" className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive('/admin/apps')}`}>
+                                                    <Package className="w-4 h-4" /> App Subscriptions
+                                                </Link>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* COLUMN 3: PROFILE */}

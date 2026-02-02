@@ -2,7 +2,7 @@
 import { ReportsClient } from '@/components/timesheets/ReportsClient'
 
 export default async function ReportsPage() {
-  // Fetch ALL data server-side
+  // Fetch data with scoped filtering
   const data = await getReportData()
 
   // Pass it to the client component for filtering

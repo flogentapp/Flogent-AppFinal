@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { assignUserToProject } from '@/lib/actions/admin' // Existing action
+import { assignUserToProject } from '@/lib/actions/admin'
 import { Loader2 } from 'lucide-react'
 
 interface User {
@@ -13,7 +13,7 @@ interface User {
     email: string
 }
 
-interface AssignProjectLeaderModalProps {
+interface AssignProjectUserModalProps {
     projectId: string
     projectName: string
     users: User[]
@@ -21,15 +21,15 @@ interface AssignProjectLeaderModalProps {
     onClose: () => void
 }
 
-export function AssignProjectLeaderModal({ projectId, projectName, users, isOpen, onClose }: AssignProjectLeaderModalProps) {
+export function AssignProjectUserModal({ projectId, projectName, users, isOpen, onClose }: AssignProjectUserModalProps) {
     const [selectedUserId, setSelectedUserId] = useState('')
+    const [role, setRole] = useState<'User' | 'ProjectLeader'>('User')
     const [loading, setLoading] = useState(false)
 
     const handleAssign = async () => {
         if (!selectedUserId) return
         setLoading(true)
-        // usage: assignUserToProject(userId, projectId, role)
-        const result = await assignUserToProject(selectedUserId, projectId, 'ProjectLeader')
+        const result = await assignUserToProject(selectedUserId, projectId, role)
         setLoading(false)
 
         if (result.success) {
@@ -41,10 +41,11 @@ export function AssignProjectLeaderModal({ projectId, projectName, users, isOpen
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Assign Leader to ${projectName}`}>
+        <Modal isOpen={isOpen} onClose={onClose} title={`Add Member to ${projectName}`}>
             <div className="space-y-5 pt-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 mb-4">
-                    <strong>Role Info:</strong> A Project Leader can verify time entries and manage project settings.
+                    <strong>Project Leader:</strong> Can manage settings and approve time.<br />
+                    <strong>Project Member:</strong> Can log time to the project.
                 </div>
 
                 <div>
@@ -68,6 +69,26 @@ export function AssignProjectLeaderModal({ projectId, projectName, users, isOpen
                     </div>
                 </div>
 
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Project Role</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setRole('User')}
+                            className={`p-3 rounded-xl border text-sm font-bold transition-all ${role === 'User' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            Project Member
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setRole('ProjectLeader')}
+                            className={`p-3 rounded-xl border text-sm font-bold transition-all ${role === 'ProjectLeader' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            Project Leader
+                        </button>
+                    </div>
+                </div>
+
                 <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
                     <button
                         onClick={onClose}
@@ -82,7 +103,7 @@ export function AssignProjectLeaderModal({ projectId, projectName, users, isOpen
                         className="flex items-center gap-2"
                     >
                         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Assign Leader
+                        {role === 'User' ? 'Add Member' : 'Assign Leader'}
                     </Button>
                 </div>
             </div>

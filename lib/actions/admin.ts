@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { logSupabaseCall } from '../supabase/logger'
+import { getUserPermissions } from './permissions'
 
 // 1. Assign User to Project
 export async function assignUserToProject(
@@ -13,6 +14,20 @@ export async function assignUserToProject(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+
+  // RBAC: Can only assign if Owner, CEO, Dept Head (of this project's dept), or current leader?
+  // User said: "project leader can only manage and edit within their project"
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO && !permissions.isDepartmentHead && !permissions.isProjectLeader) {
+    return { error: 'Permission denied' }
+  }
+
+  // If specific leader, check if they lead THIS project
+  if (!permissions.isOwner && !permissions.isCEO && !permissions.isDepartmentHead && permissions.isProjectLeader) {
+    if (!permissions.managedProjectIds.includes(projectId)) {
+      return { error: 'You are not the leader of this project' }
+    }
+  }
 
   // Check if membership exists
   const { data: existing, error: existingErr } = await supabase
@@ -206,7 +221,20 @@ export async function createProject(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Auth" }
 
-  // Get tenant (Could optimize this, but safe)
+  // RBAC: Only Owner, CEO or DeptHead can create projects
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO && !permissions.isDepartmentHead) {
+    return { error: 'Unauthorized to create projects' }
+  }
+
+  // If Dept Head, check if they are creating in THEIR department
+  if (!permissions.isOwner && !permissions.isCEO && permissions.isDepartmentHead) {
+    if (!permissions.managedDepartmentIds.includes(departmentId)) {
+      return { error: 'Unauthorized: You can only create projects in your own department' }
+    }
+  }
+
+  // Get tenant
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   if (!profile) return { error: "No profile" }
 
@@ -277,6 +305,12 @@ export async function createDepartment(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Auth" }
+
+  // RBAC: Only Owner or CEO can create departments
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return { error: 'Unauthorized to create departments' }
+  }
 
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id) return { error: "No profile" }

@@ -56,23 +56,50 @@ export async function logTime(formData: FormData) {
 
 // --- READ FUNCTIONS (Updated to read from 'time_entries') ---
 
+import { getUserPermissions } from './permissions'
+
 export async function getPendingApprovals() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
+  const permissions = await getUserPermissions()
+  if (!permissions.canManageAny) return []
+
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   if (!profile) return []
 
-  const { data } = await supabase
-    .from('time_entries') // Updated Table
-    .select('*, profiles(first_name, last_name, email), projects(name)')
+  let query = supabase
+    .from('time_entries')
+    .select('*, profiles(first_name, last_name, email), projects(*)')
     .eq('tenant_id', profile.tenant_id)
-    .eq('status', 'submitted') // Usually Managers approve 'submitted' items
-    .order('entry_date', { ascending: false })
+    .eq('status', 'submitted')
 
-  // Map 'entry_date' to 'date' for frontend compatibility if needed, 
-  // or ensure frontend reads 'entry_date'
+  if (!permissions.isOwner && !permissions.isCEO) {
+    const allowedProjectIds = new Set<string>()
+
+    if (permissions.isProjectLeader) {
+      permissions.managedProjectIds.forEach(id => allowedProjectIds.add(id))
+    }
+
+    if (permissions.isDepartmentHead) {
+      const { data: deptProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .in('department_id', permissions.managedDepartmentIds)
+      deptProjects?.forEach(p => allowedProjectIds.add(p.id))
+    }
+
+    const finalIds = Array.from(allowedProjectIds)
+    if (finalIds.length > 0) {
+      query = query.in('project_id', finalIds)
+    } else {
+      return []
+    }
+  }
+
+  const { data } = await query.order('entry_date', { ascending: false })
+
   return data?.map(d => ({ ...d, date: d.entry_date })) || []
 }
 
@@ -98,6 +125,7 @@ export async function updateTimesheetStatus(id: string, status: 'approved' | 're
 
   if (error) return { error: error.message }
   revalidatePath('/timesheets/approvals')
+  revalidatePath('/timesheets/reports')
   revalidatePath('/timesheets/my')
   return { success: true }
 }
@@ -107,18 +135,46 @@ export async function getReportData() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
+  const permissions = await getUserPermissions()
+  if (!permissions.canManageAny) return []
+
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   if (!profile) return []
 
-  const { data } = await supabase
-    .from('time_entries') // Updated Table
-    .select('*, profiles(first_name, last_name), projects(name, client_name)')
+  let query = supabase
+    .from('time_entries')
+    .select('*, profiles(first_name, last_name), projects(*)')
     .eq('tenant_id', profile.tenant_id)
     .neq('status', 'rejected')
-    .order('entry_date', { ascending: false })
+
+  if (!permissions.isOwner && !permissions.isCEO) {
+    const allowedProjectIds = new Set<string>()
+
+    if (permissions.isProjectLeader) {
+      permissions.managedProjectIds.forEach(id => allowedProjectIds.add(id))
+    }
+
+    if (permissions.isDepartmentHead) {
+      const { data: deptProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .in('department_id', permissions.managedDepartmentIds)
+      deptProjects?.forEach(p => allowedProjectIds.add(p.id))
+    }
+
+    const finalIds = Array.from(allowedProjectIds)
+    if (finalIds.length > 0) {
+      query = query.in('project_id', finalIds)
+    } else {
+      return []
+    }
+  }
+
+  const { data } = await query.order('entry_date', { ascending: false })
 
   return data?.map(d => ({ ...d, date: d.entry_date })) || []
 }
+
 
 export async function approveTimeEntry(id: string) {
   return updateTimesheetStatus(id, 'approved')
@@ -138,5 +194,7 @@ export async function deleteTimeEntry(id: string) {
 
   if (error) return { error: error.message }
   revalidatePath('/timesheets/my')
+  revalidatePath('/timesheets/approvals')
+  revalidatePath('/timesheets/reports')
   return { success: true }
 }

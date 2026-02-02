@@ -5,13 +5,13 @@ import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { ChevronLeft, ChevronRight, Plus, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { AddEntryModal } from './AddEntryModal'
-import { DayDetailModal } from './DayDetailModal' // <--- IMPORTED
+import { DayDetailModal } from './DayDetailModal'
 import { cn } from '@/lib/utils'
 
 export function WeekView({ entries, projects, user, companies }: any) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isAddOpen, setIsAddOpen] = useState(false)
-  
+
   // NEW STATE FOR DETAILS
   const [viewDate, setViewDate] = useState<Date | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
@@ -53,7 +53,8 @@ export function WeekView({ entries, projects, user, companies }: any) {
           </div>
           <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>Today</Button>
         </div>
-        <Button onClick={() => setIsAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+
+        <Button onClick={() => setIsAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200">
           <Plus className="w-4 h-4 mr-2" />
           Log Time
         </Button>
@@ -69,7 +70,7 @@ export function WeekView({ entries, projects, user, companies }: any) {
           return (
             <div key={day.toISOString()} className="flex flex-col gap-3">
               {/* Day Header (CLICKABLE NOW) */}
-              <button 
+              <button
                 onClick={() => openDayDetails(day)}
                 className={cn(
                   "p-3 rounded-xl text-center border transition-all hover:shadow-md group",
@@ -80,15 +81,15 @@ export function WeekView({ entries, projects, user, companies }: any) {
                   {format(day, 'EEE')}
                 </div>
                 <div className="text-xl font-bold">{format(day, 'd')}</div>
-                
+
                 {/* Visual Indicator for "View Details" */}
                 <div className={cn("mt-2 text-xs flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity", isToday ? "text-white" : "text-indigo-600")}>
-                    <Eye className="w-3 h-3" /> View
+                  <Eye className="w-3 h-3" /> View
                 </div>
               </button>
 
               {/* Day Card Summary */}
-              <div 
+              <div
                 className={cn(
                   "flex-1 bg-white border border-gray-100 rounded-xl p-3 min-h-[120px] transition-all cursor-pointer hover:border-indigo-300",
                   total > 0 ? "bg-white" : "bg-gray-50/50 border-dashed"
@@ -98,22 +99,22 @@ export function WeekView({ entries, projects, user, companies }: any) {
                 {total > 0 ? (
                   <div className="space-y-2">
                     <div className="text-center py-2 border-b border-gray-50">
-                        <span className="text-2xl font-bold text-indigo-600">{total}</span>
-                        <span className="text-xs text-gray-400 ml-1">hrs</span>
+                      <span className="text-2xl font-bold text-indigo-600">{total}</span>
+                      <span className="text-xs text-gray-400 ml-1">hrs</span>
                     </div>
                     <div className="space-y-1">
-                        {/* Preview up to 3 entries */}
-                        {dayEntries.slice(0, 3).map((e: any) => (
-                            <div key={e.id} className="text-xs truncate text-gray-500 flex items-center gap-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0"></div>
-                                {e.project?.name || 'Unknown'}
-                            </div>
-                        ))}
-                        {dayEntries.length > 3 && (
-                            <div className="text-xs text-center text-gray-400 italic">
-                                +{dayEntries.length - 3} more...
-                            </div>
-                        )}
+                      {/* Preview up to 3 entries */}
+                      {dayEntries.slice(0, 3).map((e: any) => (
+                        <div key={e.id} className="text-xs truncate text-gray-500 flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0"></div>
+                          {e.project?.name || 'Unknown'}
+                        </div>
+                      ))}
+                      {dayEntries.length > 3 && (
+                        <div className="text-xs text-center text-gray-400 italic">
+                          +{dayEntries.length - 3} more...
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -128,12 +129,12 @@ export function WeekView({ entries, projects, user, companies }: any) {
       </div>
 
       {/* Modals */}
-      <AddEntryModal 
-        isOpen={isAddOpen} 
-        onClose={() => setIsAddOpen(false)} 
-        projects={projects} 
-        companies={companies} 
-        user={user} 
+      <AddEntryModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        projects={projects}
+        companies={companies}
+        user={user}
       />
 
       <DayDetailModal

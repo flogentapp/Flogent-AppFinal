@@ -26,20 +26,20 @@ export function UsersClient({ users, projects, memberships }: any) {
 
   const handleDelete = async (userId: string) => {
     if (!confirm('Are you sure? This will delete all their timesheets and data.')) return
-    
+
     setDeletingId(userId)
     try {
-        const res = await deleteUser(userId)
-        if (res?.error) {
-            toast.error(res.error)
-        } else {
-            toast.success('User deleted')
-            router.refresh()
-        }
+      const res = await deleteUser(userId)
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success('User deleted')
+        router.refresh()
+      }
     } catch (e) {
-        toast.error('Failed to delete')
+      toast.error('Failed to delete')
     } finally {
-        setDeletingId(null)
+      setDeletingId(null)
     }
   }
 
@@ -48,7 +48,7 @@ export function UsersClient({ users, projects, memberships }: any) {
       <div className='flex items-center justify-between'>
         <div>
           <h1 className='text-2xl font-bold text-gray-900'>Users and Project Assignments</h1>
-          <p className='text-gray-500 text-sm'>Manage your team and their project access.</p>
+          <p className='text-gray-500 text-sm'>Manage your team and their access to projects in the selected company.</p>
         </div>
         <div className='flex items-center gap-3'>
           <Button onClick={() => setIsInviteOpen(true)} variant='outline' className='bg-white'>
@@ -92,14 +92,14 @@ export function UsersClient({ users, projects, memberships }: any) {
                     ) : <span className='text-xs text-gray-400'>No assignments</span>}
                   </td>
                   <td className='px-6 py-4 text-right'>
-                    <Button 
-                        variant='ghost' 
-                        size='sm'
-                        className='text-red-500 hover:text-red-700 hover:bg-red-50'
-                        disabled={deletingId === u.id}
-                        onClick={() => handleDelete(u.id)}
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      className='text-red-500 hover:text-red-700 hover:bg-red-50'
+                      disabled={deletingId === u.id}
+                      onClick={() => handleDelete(u.id)}
                     >
-                        {deletingId === u.id ? <Loader2 className='w-4 h-4 animate-spin' /> : <Trash2 className='w-4 h-4' />}
+                      {deletingId === u.id ? <Loader2 className='w-4 h-4 animate-spin' /> : <Trash2 className='w-4 h-4' />}
                     </Button>
                   </td>
                 </tr>

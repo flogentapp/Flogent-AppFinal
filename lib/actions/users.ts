@@ -60,12 +60,24 @@ export async function inviteUser(formData: FormData) {
         current_company_id: profile.current_company_id
     })
 
+    // 4. Assign Default Role for the Company (Isolation Fix)
+    if (profile.current_company_id) {
+        await adminClient.from('user_role_assignments').insert({
+            user_id: newUser.id,
+            tenant_id: profile.tenant_id,
+            role: 'Member',
+            scope_type: 'company',
+            scope_id: profile.current_company_id,
+            created_by: user.id
+        })
+    }
+
     const inviterName = `${user.user_metadata.first_name || 'Admin'} ${user.user_metadata.last_name || ''}`.trim()
 
     // 4. Send Credentials Email (FIXED)
     try {
         const { sendCredentialsEmail } = await import('@/lib/mailjet')
-        
+
         // CRITICAL FIX: We are now passing profile.tenant_id as the 5th argument!
         const emailResult = await sendCredentialsEmail(email, password, inviterName, firstName, profile.tenant_id)
 
