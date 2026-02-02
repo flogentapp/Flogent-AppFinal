@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, LogOut, Menu, X, Home, Clock, Shield, Check, FileText, CheckSquare, UserCog, Package } from 'lucide-react'
+import { Building2, LogOut, Menu, X, Home, Clock, Shield, Check, FileText, CheckSquare, UserCog, Package, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { logout } from '@/lib/actions/auth'
 import { switchCompany } from '@/lib/actions/user'
@@ -19,6 +19,7 @@ type NavbarContentProps = {
 
 export function NavbarContent({ userEmail, userName, currentCompany, availableCompanies, enabledApps }: NavbarContentProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false)
     const pathname = usePathname()
 
     const isActive = (path: string) => pathname?.startsWith(path)
@@ -54,12 +55,47 @@ export function NavbarContent({ userEmail, userName, currentCompany, availableCo
                             <Home className="w-5 h-5" />
                         </Link>
 
-                        {/* 2. Current Company Label */}
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
-                            <Building2 className="w-3.5 h-3.5" />
-                            <span className="text-xs font-bold uppercase tracking-wider max-w-[150px] truncate">
-                                {currentCompany.name}
-                            </span>
+                        {/* 2. Top-Level Organization Switcher */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsCompanyMenuOpen(!isCompanyMenuOpen)}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                            >
+                                <Building2 className="w-3.5 h-3.5" />
+                                <span className="text-xs font-bold uppercase tracking-wider max-w-[150px] truncate">
+                                    {currentCompany.name}
+                                </span>
+                                <ChevronDown className="w-3 h-3 opacity-50" />
+                            </button>
+
+                            {isCompanyMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setIsCompanyMenuOpen(false)} />
+                                    <div className="absolute top-full mt-2 left-0 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-20 animate-in fade-in zoom-in-95 duration-100">
+                                        <div className="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                                            Switch Organization
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto">
+                                            {availableCompanies.map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    onClick={() => {
+                                                        handleSwitch(c.id)
+                                                        setIsCompanyMenuOpen(false)
+                                                    }}
+                                                    className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-between ${c.id === currentCompany.id
+                                                            ? 'bg-indigo-50 text-indigo-700'
+                                                            : 'text-gray-600 hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    <span className="truncate">{c.name}</span>
+                                                    {c.id === currentCompany.id && <Check className="w-4 h-4" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         {/* 3. Hamburger Menu */}
