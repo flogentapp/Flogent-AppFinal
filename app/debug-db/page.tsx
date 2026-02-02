@@ -6,19 +6,19 @@ export const dynamic = 'force-dynamic';
 export default async function DebugDBPage() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
+
   // 1. Check Env Vars
   const keyStatus = key ? ('Loaded (Length: ' + key.length + ')') : 'MISSING âŒ';
   const urlStatus = url ? 'Loaded âœ…' : 'MISSING âŒ';
 
   let dbResult = 'Pending...';
-  let tenants = [];
-  
+  let tenants: any[] = [];
+
   // 2. Test Connection
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase.from('tenants').select('id, name');
-    
+
     if (error) {
       dbResult = 'ERROR: ' + error.message + ' (Code: ' + error.code + ')';
     } else {
@@ -32,15 +32,15 @@ export default async function DebugDBPage() {
   return (
     <div className="p-10 font-mono text-sm">
       <h1 className="text-xl font-bold mb-4">Database Diagnostic</h1>
-      
+
       <div className="mb-6 border p-4 bg-gray-50">
         <h2 className="font-bold">1. Environment Variables</h2>
         <p>URL: {urlStatus}</p>
         <p>Service Key: {keyStatus}</p>
         {(!url || !key) && (
-            <p className="text-red-600 mt-2 font-bold">
-                âš ï¸ Next.js cannot read .env.local! Restart the server.
-            </p>
+          <p className="text-red-600 mt-2 font-bold">
+            âš ï¸ Next.js cannot read .env.local! Restart the server.
+          </p>
         )}
       </div>
 
