@@ -1,12 +1,11 @@
 ﻿'use client'
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
 import { joinExistingTenant, completeOnboarding } from '@/lib/actions/onboarding'
 import { Input } from '@/components/ui/Input'
 import { slugify } from '@/lib/utils'
 
-export default function OnboardingPage() {
+function OnboardingContent() {
     const [mode, setMode] = useState<'create' | 'join'>('create')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -70,5 +69,17 @@ export default function OnboardingPage() {
                 )}
             </div>
         </div>
+    )
+}
+
+export default function OnboardingPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+        }>
+            <OnboardingContent />
+        </Suspense>
     )
 }
