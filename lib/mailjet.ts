@@ -22,8 +22,8 @@ export async function sendCredentialsEmail(
             siteUrl = `${protocol}://${host}`
         }
     } catch (e) {
-        // Fallback to default if everything else fails
-        siteUrl = siteUrl || 'http://localhost:3000'
+        // Fallback to live site if headers fail
+        siteUrl = siteUrl || 'https://flogent-live-final.vercel.app'
     }
 
     console.log(`📧 Mailjet: Using Site URL: ${siteUrl}`)
@@ -84,12 +84,14 @@ export async function sendCredentialsEmail(
         const messageStatus = data.Messages?.[0]?.Status
         if (messageStatus !== 'success') {
             console.error('❌ Mailjet Send Error:', data.Messages?.[0]?.Errors || messageStatus)
-            return { success: false, error: `Mailjet Status: ${messageStatus}` }
+            return { success: false, error: `Mailjet Status: ${messageStatus}. Check if sender is verified.` }
         }
 
-        console.log('✅ Email Sent Successfully')
-        return { success: true, data: data }
+        console.log(`✅ Email Sent Successfully. Status: ${messageStatus}`)
+        return { success: true, data: data, status: messageStatus }
     } catch (error: any) {
+        // Fallback to live site if headers fail (redundant but safe)
+        siteUrl = siteUrl || 'https://flogent-live-final.vercel.app'
         console.error('❌ System Error in sendCredentialsEmail:', error)
         return { success: false, error: error.message }
     }

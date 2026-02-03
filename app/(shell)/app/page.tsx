@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, FileText, CheckSquare, BookOpen, Calendar, Shield, ArrowRight } from 'lucide-react'
@@ -14,26 +13,29 @@ export default async function HubPage({
 
     if (!user) redirect('/login')
 
-    const adminClient = createAdminClient()
-
-    // Get user's tenant (Try adminClient if profile is inaccessible)
-    const { data: profile } = await adminClient
+    // Get user's tenant
+    const { data: profile } = await supabase
         .from('profiles')
         .select('tenant_id, first_name')
         .eq('id', user.id)
         .single()
 
-    const activeTenantId = profile?.tenant_id || user.user_metadata?.tenant_id
-
-    if (!activeTenantId) {
+    if (!profile) {
+        // If user exists but has no profile (e.g. after DB reset),
+        // we must clear the stale tenant_id from metadata to stop the middleware loop
+        if (user.user_metadata?.tenant_id) {
+            await supabase.auth.updateUser({
+                data: { tenant_id: null }
+            })
+        }
         redirect('/onboarding')
     }
 
     // Get enabled apps for this tenant
-    const { data: subscriptions } = await adminClient
+    const { data: subscriptions } = await supabase
         .from('tenant_app_subscriptions')
         .select('app_name, enabled')
-        .eq('tenant_id', activeTenantId)
+        .eq('tenant_id', profile.tenant_id)
         .eq('enabled', true)
 
     const enabledApps = new Set(subscriptions?.map(s => s.app_name) || [])
@@ -90,8 +92,6 @@ export default async function HubPage({
     // Filter to only enabled apps
     const availableApps = allApps.filter(app => enabledApps.has(app.name))
 
-    const firstName = profile?.first_name || user.user_metadata?.first_name || 'there'
-
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
             {(await searchParams).error && (
@@ -107,7 +107,7 @@ export default async function HubPage({
 
             <div className="mb-8">
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                    Welcome back, {firstName}
+                    Welcome back, {profile.first_name || 'there'}
                 </h1>
                 <p className="text-slate-500 mt-2 font-medium">Select an app to get started</p>
             </div>

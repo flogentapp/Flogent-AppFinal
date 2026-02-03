@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { sendCredentialsEmail } from '@/lib/mailjet'
 
 export async function inviteUser(formData: FormData) {
     const supabase = await createClient()
@@ -50,19 +49,7 @@ export async function inviteUser(formData: FormData) {
 
     const newUser = userData.user
 
-    // 4. Determine Company for New User
-    let targetCompanyId = formData.get('companyId') as string || profile.current_company_id
-    if (!targetCompanyId) {
-        const { data: companies } = await adminClient
-            .from('companies')
-            .select('id')
-            .eq('tenant_id', profile.tenant_id)
-            .eq('status', 'active')
-            .limit(1)
-        targetCompanyId = companies?.[0]?.id
-    }
-
-    // 5. Create Profile
+    // 3. Create Profile
     await adminClient.from('profiles').insert({
         id: newUser.id,
         tenant_id: profile.tenant_id,
@@ -70,22 +57,37 @@ export async function inviteUser(formData: FormData) {
         first_name: firstName,
         last_name: lastName,
         status: 'active',
-        current_company_id: targetCompanyId
+        current_company_id: profile.current_company_id
     })
 
-    // 6. Role assignments are handled via RBAC for managers only. 
-    // Regular users (who just log time) do not need explicit rows in user_role_assignments
-    // for visibility, as the AppNavbar now falls back to tenant-wide visibility if no roles exist.
+    // 4. Assign Default Role for the Company (Isolation Fix)
+    if (profile.current_company_id) {
+        await adminClient.from('user_role_assignments').insert({
+            user_id: newUser.id,
+            tenant_id: profile.tenant_id,
+            role: 'Member',
+            scope_type: 'company',
+            scope_id: profile.current_company_id,
+            created_by: user.id
+        })
+    }
 
     const inviterName = `${user.user_metadata.first_name || 'Admin'} ${user.user_metadata.last_name || ''}`.trim()
 
-    // Send Credentials Email
-    const emailResult = await sendCredentialsEmail(email, password, inviterName, firstName, profile.tenant_id)
+    // 4. Send Credentials Email (FIXED)
+    try {
+        const { sendCredentialsEmail } = await import('@/lib/mailjet')
 
-    if (!emailResult.success) {
-        console.error('Mailjet Error:', emailResult.error)
-        // CRITICAL FIX: Return the REAL error message so you can see it on screen
-        return { error: 'User created, BUT email failed: ' + emailResult.error }
+        // CRITICAL FIX: We are now passing profile.tenant_id as the 5th argument!
+        const emailResult = await sendCredentialsEmail(email, password, inviterName, firstName, profile.tenant_id)
+
+        if (!emailResult.success) {
+            console.error('Mailjet Error:', emailResult.error)
+            // CRITICAL FIX: Return the REAL error message so you can see it on screen
+            return { error: 'User created, BUT email failed: ' + emailResult.error }
+        }
+    } catch (importErr: any) {
+        return { error: 'System Error: ' + importErr.message }
     }
 
     revalidatePath('/admin/users')

@@ -110,13 +110,7 @@ export function UsersClient({ users, projects, memberships }: any) {
       </div>
 
       <AssignUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} users={users} projects={projects} onAssigned={() => { setIsModalOpen(false); router.refresh() }} />
-      <AssignUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} users={users} projects={projects} onAssigned={() => { setIsModalOpen(false); router.refresh() }} />
-      <InviteUserModal
-        isOpen={isInviteOpen}
-        onClose={() => setIsInviteOpen(false)}
-        onSuccess={() => { setIsInviteOpen(false); router.refresh() }}
-        currentCompanyId={projects?.[0]?.company_id}
-      />
+      <InviteUserModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} onSuccess={() => { setIsInviteOpen(false); router.refresh() }} />
     </div>
   )
 }
