@@ -7,10 +7,17 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Mail, User, Loader2, Lock } from 'lucide-react'
 
-export function InviteUserModal({ isOpen, onClose, onSuccess }) {
+type InviteUserModalProps = {
+    isOpen: boolean
+    onClose: () => void
+    onSuccess: () => void
+    currentCompanyId?: string
+}
+
+export function InviteUserModal({ isOpen, onClose, onSuccess, currentCompanyId }: InviteUserModalProps) {
     const [pending, setPending] = useState(false)
 
-    async function handleSubmit(formData) {
+    async function handleSubmit(formData: FormData) {
         setPending(true)
         try {
             const result = await inviteUser(formData)
@@ -21,8 +28,8 @@ export function InviteUserModal({ isOpen, onClose, onSuccess }) {
                 if (onSuccess) onSuccess()
                 else onClose()
             }
-        } catch (err) {
-            toast.error('Failed to create user')
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to create user')
         } finally {
             setPending(false)
         }
@@ -31,6 +38,7 @@ export function InviteUserModal({ isOpen, onClose, onSuccess }) {
     return (
         <Modal isOpen={isOpen} onClose={onClose} title='Create New User'>
             <form action={handleSubmit} className='space-y-4 pt-2'>
+                {currentCompanyId && <input type="hidden" name="companyId" value={currentCompanyId} />}
                 <div className='grid grid-cols-2 gap-3'>
                     <input name='firstName' required placeholder='First Name' className='border p-2 rounded w-full' />
                     <input name='lastName' required placeholder='Last Name' className='border p-2 rounded w-full' />

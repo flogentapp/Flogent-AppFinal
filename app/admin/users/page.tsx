@@ -116,6 +116,7 @@ export default async function UsersPage() {
       users={users || []}
       projects={projects || []}
       memberships={memberships || []}
+      currentCompanyId={currentCompanyId}
     />
   )
 }

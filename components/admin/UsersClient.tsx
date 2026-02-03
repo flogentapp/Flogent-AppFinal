@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { deleteUser } from '@/lib/actions/users'
 import { toast } from 'sonner'
 
-export function UsersClient({ users, projects, memberships }: any) {
+export function UsersClient({ users, projects, memberships, currentCompanyId }: any) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isInviteOpen, setIsInviteOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -110,7 +110,12 @@ export function UsersClient({ users, projects, memberships }: any) {
       </div>
 
       <AssignUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} users={users} projects={projects} onAssigned={() => { setIsModalOpen(false); router.refresh() }} />
-      <InviteUserModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} onSuccess={() => { setIsInviteOpen(false); router.refresh() }} />
+      <InviteUserModal
+        isOpen={isInviteOpen}
+        onClose={() => setIsInviteOpen(false)}
+        onSuccess={() => { setIsInviteOpen(false); router.refresh() }}
+        currentCompanyId={currentCompanyId}
+      />
     </div>
   )
 }

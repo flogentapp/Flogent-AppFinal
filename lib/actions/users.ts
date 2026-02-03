@@ -34,14 +34,19 @@ export async function inviteUser(formData: FormData) {
     // 2. Determine Company for New User EARLY (to include in metadata)
     let targetCompanyId = formData.get('companyId') as string
     if (!targetCompanyId) {
-        const { data: companies } = await adminClient
-            .from('companies')
-            .select('id')
-            .eq('tenant_id', profile.tenant_id)
-            .eq('status', 'active')
-            .order('name')
-            .limit(1)
-        targetCompanyId = companies?.[0]?.id || profile.current_company_id
+        // ULTIMATE FALLBACK: Use the inviter's own current company
+        targetCompanyId = profile.current_company_id
+
+        if (!targetCompanyId) {
+            const { data: companies } = await adminClient
+                .from('companies')
+                .select('id')
+                .eq('tenant_id', profile.tenant_id)
+                .eq('status', 'active')
+                .order('name')
+                .limit(1)
+            targetCompanyId = companies?.[0]?.id
+        }
     }
 
     // 3. Create User Directly (Auto-confirmed)
