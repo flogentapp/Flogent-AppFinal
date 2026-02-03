@@ -7,8 +7,8 @@ export async function sendCredentialsEmail(
     userName: string,
     tenantId: string
 ) {
-    const MJ_API_KEY = process.env.MJ_API_KEY
-    const MJ_API_SECRET = process.env.MJ_API_SECRET
+    const MJ_API_KEY = process.env.MJ_API_KEY || process.env.MAILJET_API_KEY
+    const MJ_API_SECRET = process.env.MJ_API_SECRET || process.env.MAILJET_SECRET_KEY
 
     // Site URL detection: Prioritize ENV if set, fallback to headers if useful
     let siteUrl = process.env.NEXT_PUBLIC_SITE_URL
