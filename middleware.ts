@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
@@ -48,54 +49,43 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/login', request.url))
         }
 
-        // Check for tenant_id (using metadata first for efficiency)
-        const tenantId = user.user_metadata?.tenant_id
+        // --- 1. RESOLVE TENANT ID (Strict Source of Truth: Database via Admin Client) ---
+        const adminClient = createAdminClient()
+        const { data: profile } = await adminClient
+            .from('profiles')
+            .select('tenant_id')
+            .eq('id', user.id)
+            .single()
 
-        if (!tenantId && !isOnboardingRoute) {
-            // Check DB as fallback if metadata is missing (e.g. first login)
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('tenant_id')
-                .eq('id', user.id)
-                .single()
+        const activeTenantId = profile?.tenant_id
 
-            if (!profile?.tenant_id) {
-                return NextResponse.redirect(new URL('/onboarding', request.url))
-            }
+        // --- 2. FORCED REDIRECTS ---
+        if (!activeTenantId && !isOnboardingRoute) {
+            return NextResponse.redirect(new URL('/onboarding', request.url))
         }
-
-        if (tenantId && isOnboardingRoute) {
+        if (activeTenantId && isOnboardingRoute && !request.nextUrl.searchParams.has('mode')) {
             return NextResponse.redirect(new URL('/app', request.url))
         }
 
-        // --- SUB-APP ACCESS CONTROL (CRITICAL SECURITY) ---
-        // Define sub-apps
+        // --- 3. SUB-APP ACCESS CONTROL (SUBSCRIPTIONS) ---
         const path = request.nextUrl.pathname
         let subApp: string | null = null
 
-        if (path.startsWith('/timesheets')) {
-            subApp = 'timesheets'
-        } else if (path.startsWith('/documents')) {
-            subApp = 'documents'
-        } else if (path.startsWith('/tasks')) {
-            subApp = 'tasks'
-        } else if (path.startsWith('/diary')) {
-            subApp = 'diary'
-        } else if (path.startsWith('/planner')) {
-            subApp = 'planner'
-        }
+        if (path.startsWith('/timesheets')) subApp = 'timesheets'
+        else if (path.startsWith('/documents')) subApp = 'documents'
+        else if (path.startsWith('/tasks')) subApp = 'tasks'
+        else if (path.startsWith('/diary')) subApp = 'diary'
+        else if (path.startsWith('/planner')) subApp = 'planner'
 
-        // Only check if it is a sub-app (skip /app and /admin)
-        if (subApp) {
-            // We already have tenantId from metadata or DB above
-            const { data: subscription } = await supabase
+        if (subApp && activeTenantId) {
+            // Use adminClient to bypass RLS and ensure we see the enable status
+            const { data: subscription } = await adminClient
                 .from('tenant_app_subscriptions')
                 .select('enabled')
-                .eq('tenant_id', tenantId) // Use the resolved tenantId
+                .eq('tenant_id', activeTenantId)
                 .eq('app_name', subApp)
-                .single()
+                .maybeSingle()
 
-            // If not actively enabled, block access
             if (!subscription?.enabled) {
                 const url = new URL('/app', request.url)
                 url.searchParams.set('error', 'app_not_enabled')

@@ -10,20 +10,22 @@ export async function sendCredentialsEmail(
     const MJ_API_KEY = process.env.MJ_API_KEY || process.env.MAILJET_API_KEY
     const MJ_API_SECRET = process.env.MJ_API_SECRET || process.env.MAILJET_SECRET_KEY
 
-    // Site URL detection: Prioritize ENV if set, fallback to headers if useful
-    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-
+    // 1. Detect Host via headers
+    let siteUrl = ''
     try {
         const h = await headers()
         const host = h.get('host')
-        // Only override if we are NOT on localhost OR if siteUrl isn't set
-        if (host && (!host.includes('localhost') || !siteUrl)) {
+        if (host) {
             const protocol = host.includes('localhost') ? 'http' : 'https'
             siteUrl = `${protocol}://${host}`
         }
     } catch (e) {
-        // Fallback to live site if headers fail
-        siteUrl = siteUrl || 'https://flogent-live-final.vercel.app'
+        // Headers not available
+    }
+
+    // 2. Fallback to Environment Variable or Default
+    if (!siteUrl) {
+        siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     }
 
     console.log(`📧 Mailjet: Using Site URL: ${siteUrl}`)
@@ -84,14 +86,12 @@ export async function sendCredentialsEmail(
         const messageStatus = data.Messages?.[0]?.Status
         if (messageStatus !== 'success') {
             console.error('❌ Mailjet Send Error:', data.Messages?.[0]?.Errors || messageStatus)
-            return { success: false, error: `Mailjet Status: ${messageStatus}. Check if sender is verified.` }
+            return { success: false, error: `Mailjet Status: ${messageStatus}` }
         }
 
-        console.log(`✅ Email Sent Successfully. Status: ${messageStatus}`)
-        return { success: true, data: data, status: messageStatus }
+        console.log('✅ Email Sent Successfully')
+        return { success: true, data: data }
     } catch (error: any) {
-        // Fallback to live site if headers fail (redundant but safe)
-        siteUrl = siteUrl || 'https://flogent-live-final.vercel.app'
         console.error('❌ System Error in sendCredentialsEmail:', error)
         return { success: false, error: error.message }
     }

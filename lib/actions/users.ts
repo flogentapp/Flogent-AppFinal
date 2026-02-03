@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { sendCredentialsEmail } from '@/lib/mailjet'
 
 export async function inviteUser(formData: FormData) {
     const supabase = await createClient()
@@ -30,13 +31,27 @@ export async function inviteUser(formData: FormData) {
 
     const adminClient = createAdminClient()
 
-    // 2. Create User Directly (Auto-confirmed)
+    // 2. Determine Company for New User EARLY (to include in metadata)
+    let targetCompanyId = formData.get('companyId') as string
+    if (!targetCompanyId) {
+        const { data: companies } = await adminClient
+            .from('companies')
+            .select('id')
+            .eq('tenant_id', profile.tenant_id)
+            .eq('status', 'active')
+            .order('name')
+            .limit(1)
+        targetCompanyId = companies?.[0]?.id || profile.current_company_id
+    }
+
+    // 3. Create User Directly (Auto-confirmed)
     const { data: userData, error: createError } = await adminClient.auth.admin.createUser({
         email: email,
         password: password,
         email_confirm: true,
         user_metadata: {
             tenant_id: profile.tenant_id,
+            current_company_id: targetCompanyId, // SET HERE
             first_name: firstName,
             last_name: lastName,
             onboarded: true
@@ -49,45 +64,34 @@ export async function inviteUser(formData: FormData) {
 
     const newUser = userData.user
 
-    // 3. Create Profile
-    await adminClient.from('profiles').insert({
+    // 4. Create Profile (Use upsert to handle potential trigger-generated profiles)
+    const { error: profileError } = await adminClient.from('profiles').upsert({
         id: newUser.id,
         tenant_id: profile.tenant_id,
         email: email,
         first_name: firstName,
         last_name: lastName,
         status: 'active',
-        current_company_id: profile.current_company_id
+        current_company_id: targetCompanyId
     })
 
-    // 4. Assign Default Role for the Company (Isolation Fix)
-    if (profile.current_company_id) {
-        await adminClient.from('user_role_assignments').insert({
-            user_id: newUser.id,
-            tenant_id: profile.tenant_id,
-            role: 'Member',
-            scope_type: 'company',
-            scope_id: profile.current_company_id,
-            created_by: user.id
-        })
+    if (profileError) {
+        return { error: 'Profile Error: ' + profileError.message }
     }
+
+    // 6. Role assignments are handled via RBAC for managers only. 
+    // Regular users (who just log time) do not need explicit rows in user_role_assignments
+    // for visibility, as the AppNavbar now falls back to tenant-wide visibility if no roles exist.
 
     const inviterName = `${user.user_metadata.first_name || 'Admin'} ${user.user_metadata.last_name || ''}`.trim()
 
-    // 4. Send Credentials Email (FIXED)
-    try {
-        const { sendCredentialsEmail } = await import('@/lib/mailjet')
+    // Send Credentials Email
+    const emailResult = await sendCredentialsEmail(email, password, inviterName, firstName, profile.tenant_id)
 
-        // CRITICAL FIX: We are now passing profile.tenant_id as the 5th argument!
-        const emailResult = await sendCredentialsEmail(email, password, inviterName, firstName, profile.tenant_id)
-
-        if (!emailResult.success) {
-            console.error('Mailjet Error:', emailResult.error)
-            // CRITICAL FIX: Return the REAL error message so you can see it on screen
-            return { error: 'User created, BUT email failed: ' + emailResult.error }
-        }
-    } catch (importErr: any) {
-        return { error: 'System Error: ' + importErr.message }
+    if (!emailResult.success) {
+        console.error('Mailjet Error:', emailResult.error)
+        // CRITICAL FIX: Return the REAL error message so you can see it on screen
+        return { error: 'User created, BUT email failed: ' + emailResult.error }
     }
 
     revalidatePath('/admin/users')

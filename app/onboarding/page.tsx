@@ -1,17 +1,24 @@
 ﻿'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { joinExistingTenant, completeOnboarding } from '@/lib/actions/onboarding'
 import { Input } from '@/components/ui/Input'
 import { slugify } from '@/lib/utils'
 
-export default function OnboardingPage() {
+function OnboardingContent() {
     const [mode, setMode] = useState<'create' | 'join'>('create')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [companyName, setCompanyName] = useState('')
     const [slug, setSlug] = useState('')
     const router = useRouter()
+    const searchParams = useSearchParams()
+
+    useEffect(() => {
+        const m = searchParams.get('mode')
+        if (m === 'join') setMode('join')
+        if (m === 'create') setMode('create')
+    }, [searchParams])
 
     async function handleJoin(formData: FormData) {
         setLoading(true); setError('')
@@ -40,7 +47,7 @@ export default function OnboardingPage() {
             </div>
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md bg-white py-8 px-4 shadow sm:rounded-lg">
                 {error && <div className="bg-red-50 text-red-700 p-3 rounded text-sm mb-6">{error}</div>}
-                
+
                 {mode === 'join' ? (
                     <form action={handleJoin} className="space-y-6">
                         <div>
@@ -55,12 +62,24 @@ export default function OnboardingPage() {
                             <Input name="first_name" required placeholder="First Name" />
                             <Input name="last_name" required placeholder="Last Name" />
                         </div>
-                        <Input name="company_name" required placeholder="Company Name" onChange={(e) => {setCompanyName(e.target.value); setSlug(slugify(e.target.value))}} />
+                        <Input name="company_name" required placeholder="Company Name" onChange={(e) => { setCompanyName(e.target.value); setSlug(slugify(e.target.value)) }} />
                         <input type="hidden" name="tenant_slug" value={slug} />
                         <button type="submit" disabled={loading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Creating...' : 'Get Started'}</button>
                     </form>
                 )}
             </div>
         </div>
+    )
+}
+
+export default function OnboardingPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+        }>
+            <OnboardingContent />
+        </Suspense>
     )
 }
