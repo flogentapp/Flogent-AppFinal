@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { assignUserToProject } from '@/lib/actions/admin'
@@ -24,11 +24,19 @@ export function AssignUserModal({
   const [projectId, setProjectId] = useState('')
   const [role, setRole] = useState<Role>('User')
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!mounted) return
     setLoading(true)
     const res = await assignUserToProject(userId, projectId, role)
+    if (!mounted) return
     setLoading(false)
 
     if (res?.error) {

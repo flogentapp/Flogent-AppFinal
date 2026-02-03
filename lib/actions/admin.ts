@@ -351,3 +351,84 @@ export async function deleteProject(projectId: string) {
   revalidatePath('/admin/projects')
   return { success: true }
 }
+
+// 10. Assign User to Company
+export async function assignUserToCompany(userId: string, companyId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return { error: 'Permission denied' }
+  }
+
+  // Get Tenant
+  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile) return { error: 'Profile not found' }
+
+  // 1. Get the first project for this company to act as a pivot
+  const { data: projects } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('company_id', companyId)
+    .limit(1)
+
+  const projectId = projects?.[0]?.id
+
+  if (!projectId) {
+    return { error: 'This company has no projects. Please create at least one project first.' }
+  }
+
+  // 2. Assign to Project (This grants company access indirectly)
+  const { error: memErr } = await supabase.from('project_memberships').upsert({
+    project_id: projectId,
+    user_id: userId,
+    role: 'User',
+    created_by: user.id
+  }, { onConflict: 'project_id,user_id' })
+
+  if (memErr) return { error: memErr.message }
+
+  // 3. Update the Profile current_company_id to ensure they switch
+  await supabase
+    .from('profiles')
+    .update({ current_company_id: companyId })
+    .eq('id', userId)
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
+// 11. Remove User from Company
+export async function removeUserFromCompany(userId: string, companyId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return { error: 'Permission denied' }
+  }
+
+  // 1. Remove company role assignments
+  const { error: roleErr } = await supabase
+    .from('user_role_assignments')
+    .delete()
+    .eq('user_id', userId)
+    .eq('scope_id', companyId)
+    .eq('scope_type', 'company')
+
+  if (roleErr) return { error: roleErr.message }
+
+  // 2. Remove project memberships in that company
+  const { data: projects } = await supabase.from('projects').select('id').eq('company_id', companyId)
+  const projectIds = projects?.map(p => p.id) || []
+
+  if (projectIds.length > 0) {
+    await supabase.from('project_memberships').delete().eq('user_id', userId).in('project_id', projectIds)
+  }
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}

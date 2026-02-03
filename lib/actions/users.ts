@@ -1,4 +1,4 @@
-﻿'use server'
+'use server'
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -34,19 +34,14 @@ export async function inviteUser(formData: FormData) {
     // 2. Determine Company for New User EARLY (to include in metadata)
     let targetCompanyId = formData.get('companyId') as string
     if (!targetCompanyId) {
-        // ULTIMATE FALLBACK: Use the inviter's own current company
-        targetCompanyId = profile.current_company_id
-
-        if (!targetCompanyId) {
-            const { data: companies } = await adminClient
-                .from('companies')
-                .select('id')
-                .eq('tenant_id', profile.tenant_id)
-                .eq('status', 'active')
-                .order('name')
-                .limit(1)
-            targetCompanyId = companies?.[0]?.id
-        }
+        const { data: companies } = await adminClient
+            .from('companies')
+            .select('id')
+            .eq('tenant_id', profile.tenant_id)
+            .eq('status', 'active')
+            .order('name')
+            .limit(1)
+        targetCompanyId = companies?.[0]?.id || profile.current_company_id
     }
 
     // 3. Create User Directly (Auto-confirmed)
@@ -82,6 +77,12 @@ export async function inviteUser(formData: FormData) {
 
     if (profileError) {
         return { error: 'Profile Error: ' + profileError.message }
+    }
+
+    // 5. Update Profile current_company_id
+    // This ensures they see the company in their switcher and appear in the admin list
+    if (targetCompanyId) {
+        await adminClient.from('profiles').update({ current_company_id: targetCompanyId }).eq('id', newUser.id)
     }
 
     // 6. Role assignments are handled via RBAC for managers only. 

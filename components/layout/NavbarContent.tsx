@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Building2, LogOut, Menu, X, Home, Clock, Shield, Check, FileText, CheckSquare, UserCog, Package, ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { logout } from '@/lib/actions/auth'
 import { switchCompany } from '@/lib/actions/user'
 
@@ -23,6 +23,12 @@ type NavbarContentProps = {
 export function NavbarContent({ userEmail, userName, currentCompany, availableCompanies, enabledApps, permissions }: NavbarContentProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+        return () => setMounted(false)
+    }, [])
     const pathname = usePathname()
 
     const isActive = (path: string) => pathname?.startsWith(path)
@@ -31,8 +37,9 @@ export function NavbarContent({ userEmail, userName, currentCompany, availableCo
 
     const handleSwitch = async (id: string) => {
         if (id === currentCompany.id) return
+        if (!mounted) return
         await switchCompany(id)
-        setIsOpen(false)
+        if (mounted) setIsOpen(false)
     }
 
     return (

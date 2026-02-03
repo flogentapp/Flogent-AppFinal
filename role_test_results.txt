@@ -1,0 +1,10 @@
+﻿--- TESTING ROLES IN REAL CONTEXT ---
+Γ¥î CEO: duplicate key value violates unique constraint "user_role_assignments_unique"
+Γ¥î Admin: invalid input value for enum role_type: "Admin"
+Γ¥î Manager: invalid input value for enum role_type: "Manager"
+Γ¥î User: new row for relation "user_role_assignments" violates check constraint "user_role_assignments_valid_role"
+Γ¥î Employee: invalid input value for enum role_type: "Employee"
+Γ¥î Member: invalid input value for enum role_type: "Member"
+Γ¥î DepartmentHead: new row for relation "user_role_assignments" violates check constraint "user_role_assignments_valid_role"
+Γ¥î ProjectLeader: new row for relation "user_role_assignments" violates check constraint "user_role_assignments_valid_role"
+Γ¥î Staff: invalid input value for enum role_type: "Staff"

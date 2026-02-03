@@ -1,0 +1,7 @@
+﻿--- ALL TENANT PROFILES ---
+San-Mari Fourie | sfourie@quantraconsult.co.za | c1ab1bf3-508d-430c-8e70-1e75d0ae1fbf
+Wilhelm Adriaan Kuun | wilhelm@kuun.co.za | b8292916-91a5-4264-9b48-e74aa7d93d95
+Wilhelm Kuun | Wilhelm@parallaxtechnologies.co.za | 439fa57d-37fe-421c-ae99-618f17e92391
+Carel  Kuun | kuun@quantra.co.za | 93e4cddf-7622-4e6f-8c05-41ba3df68d85
+--- ROLES IN PARALLAX ---
+[]

@@ -1,9 +1,9 @@
-﻿// @ts-nocheck
-'use client'
+﻿'use client'
+
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { inviteUser } from '@/lib/actions/users'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Mail, User, Loader2, Lock } from 'lucide-react'
 
@@ -16,11 +16,19 @@ type InviteUserModalProps = {
 
 export function InviteUserModal({ isOpen, onClose, onSuccess, currentCompanyId }: InviteUserModalProps) {
     const [pending, setPending] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+        return () => setMounted(false)
+    }, [])
 
     async function handleSubmit(formData: FormData) {
+        if (!mounted) return
         setPending(true)
         try {
             const result = await inviteUser(formData)
+            if (!mounted) return
             if (result?.error) {
                 toast.error(result.error)
             } else {
@@ -31,7 +39,7 @@ export function InviteUserModal({ isOpen, onClose, onSuccess, currentCompanyId }
         } catch (err: any) {
             toast.error(err.message || 'Failed to create user')
         } finally {
-            setPending(false)
+            if (mounted) setPending(false)
         }
     }
 

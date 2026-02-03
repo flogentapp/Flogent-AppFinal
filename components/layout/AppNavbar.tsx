@@ -46,38 +46,56 @@ export async function AppNavbar() {
                 .order('name')
             companies = data || []
         } else {
-            // Non-owners see companies they have a role in OR the one in their metadata
-            const { data: assignments } = await adminClient
+            // Non-owners see companies they have a role in, OR a project membership in, OR a department head role in, OR the one in their metadata
+
+            // 1. Company Roles
+            const { data: companyRoles } = await adminClient
                 .from('user_role_assignments')
                 .select('scope_id')
                 .eq('user_id', user.id)
                 .eq('scope_type', 'company')
 
-            let allowedIds = assignments?.map(a => a.scope_id) || []
+            // 2. Project Memberships
+            const { data: projectMemberships } = await adminClient
+                .from('project_memberships')
+                .select('projects(company_id)')
+                .eq('user_id', user.id)
+
+            // 3. Department Roles (Fetch the company for each department)
+            const { data: deptRoles } = await adminClient
+                .from('user_role_assignments')
+                .select('scope_id')
+                .eq('user_id', user.id)
+                .eq('scope_type', 'department')
+
+            let allowedIds = new Set<string>(companyRoles?.map(a => a.scope_id).filter(Boolean) as string[] || [])
+
+            projectMemberships?.forEach((pm: any) => {
+                const cid = pm.projects?.company_id
+                if (cid) allowedIds.add(cid)
+            })
+
+            if (deptRoles && deptRoles.length > 0) {
+                const deptIds = deptRoles.map(r => r.scope_id).filter(Boolean)
+                const { data: depts } = await adminClient
+                    .from('departments')
+                    .select('company_id')
+                    .in('id', deptIds)
+                depts?.forEach(d => {
+                    if (d.company_id) allowedIds.add(d.company_id)
+                })
+            }
 
             // Fallback: Also include the company from their profile (for invited users)
-            if (activeCompanyId && !allowedIds.includes(activeCompanyId)) {
-                allowedIds.push(activeCompanyId)
+            if (activeCompanyId) {
+                allowedIds.add(activeCompanyId)
             }
 
-            if (allowedIds.length > 0) {
+            if (allowedIds.size > 0) {
                 const { data } = await adminClient
                     .from('companies')
                     .select('id, name')
-                    .in('id', allowedIds)
-                    .eq('status', 'active')
-                    .order('name')
-                companies = data || []
-            }
-
-            // FINAL SAFETY FALLBACK: If we still have no companies but we HAVE a tenant,
-            // fetch all companies in the tenant via adminClient (guaranteed to work)
-            // This fix ensures that even if role assignments fail, the user can see and switch to any company in their tenant.
-            if (companies.length === 0 && activeTenantId) {
-                const { data } = await adminClient
-                    .from('companies')
-                    .select('id, name')
-                    .eq('tenant_id', activeTenantId)
+                    .in('id', Array.from(allowedIds))
                     .eq('status', 'active')
                     .order('name')
                 companies = data || []

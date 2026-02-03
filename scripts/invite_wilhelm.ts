@@ -92,7 +92,7 @@ async function main() {
     // We can't import the lib file easily because of module resolution in ts-node without changes?
     // I'll copy the send logic here to be safe and fast.
     const MJ_API_KEY = '5e3dbca3693aaf93f0445f729dff5d95'
-    const MJ_API_SECRET = '1c0d5d6d6075f6385c66bc40cdf795eb'
+    const MJ_API_SECRET = 'e1e4cdce53c17f24504e4eba3045aef2'
     const auth = Buffer.from(`${MJ_API_KEY}:${MJ_API_SECRET}`).toString('base64')
 
     const response = await fetch('https://api.mailjet.com/v3.1/send', {

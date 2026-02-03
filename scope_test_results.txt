@@ -1,0 +1,6 @@
+﻿--- TESTING ROLES FOR DEPT AND PROJECT ---
+Γ£à DepartmentHead on department: SUCCESS
+Γ¥î ProjectLeader on project: new row for relation "user_role_assignments" violates check constraint "user_role_assignments_valid_role"
+Γ¥î User on department: new row for relation "user_role_assignments" violates check constraint "user_role_assignments_valid_role"
+Γ¥î User on project: new row for relation "user_role_assignments" violates check constraint "user_role_assignments_valid_role"
+Γ¥î CEO on company: duplicate key value violates unique constraint "user_role_assignments_unique"

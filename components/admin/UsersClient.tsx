@@ -1,18 +1,26 @@
 ﻿'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Plus, UserPlus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, UserPlus, Trash2, Loader2, Link } from 'lucide-react'
 import { AssignUserModal } from '@/components/admin/AssignUserModal'
 import { InviteUserModal } from '@/components/admin/InviteUserModal'
+import { AssignExistingUserModal } from '@/components/admin/AssignExistingUserModal'
 import { useRouter } from 'next/navigation'
-import { deleteUser } from '@/lib/actions/users'
+import { removeUserFromCompany } from '@/lib/actions/admin'
 import { toast } from 'sonner'
 
-export function UsersClient({ users, projects, memberships, currentCompanyId }: any) {
+export function UsersClient({ users, projects, memberships, currentCompanyId, companies, allTenantUsers }: any) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [isExistingOpen, setIsExistingOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
   const router = useRouter()
 
   const membershipsByUser = useMemo(() => {
@@ -24,22 +32,24 @@ export function UsersClient({ users, projects, memberships, currentCompanyId }: 
     return map
   }, [memberships])
 
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure? This will delete all their timesheets and data.')) return
+  const handleRemove = async (userId: string) => {
+    if (!confirm('Remove this user from the current company? They will lose access to all projects in this company.')) return
 
+    if (!mounted) return
     setDeletingId(userId)
     try {
-      const res = await deleteUser(userId)
+      const res = await removeUserFromCompany(userId, currentCompanyId)
+      if (!mounted) return
       if (res?.error) {
         toast.error(res.error)
       } else {
-        toast.success('User deleted')
+        toast.success('User removed from company')
         router.refresh()
       }
     } catch (e) {
-      toast.error('Failed to delete')
+      toast.error('Failed to remove user')
     } finally {
-      setDeletingId(null)
+      if (mounted) setDeletingId(null)
     }
   }
 
@@ -51,6 +61,9 @@ export function UsersClient({ users, projects, memberships, currentCompanyId }: 
           <p className='text-gray-500 text-sm'>Manage your team and their access to projects in the selected company.</p>
         </div>
         <div className='flex items-center gap-3'>
+          <Button onClick={() => setIsExistingOpen(true)} variant='outline' className='bg-white'>
+            <Link className='w-4 h-4 mr-2' /> Add Existing
+          </Button>
           <Button onClick={() => setIsInviteOpen(true)} variant='outline' className='bg-white'>
             <UserPlus className='w-4 h-4 mr-2' /> Create User
           </Button>
@@ -97,7 +110,8 @@ export function UsersClient({ users, projects, memberships, currentCompanyId }: 
                       size='sm'
                       className='text-red-500 hover:text-red-700 hover:bg-red-50'
                       disabled={deletingId === u.id}
-                      onClick={() => handleDelete(u.id)}
+                      onClick={() => handleRemove(u.id)}
+                      title="Remove from Company"
                     >
                       {deletingId === u.id ? <Loader2 className='w-4 h-4 animate-spin' /> : <Trash2 className='w-4 h-4' />}
                     </Button>
@@ -115,6 +129,14 @@ export function UsersClient({ users, projects, memberships, currentCompanyId }: 
         onClose={() => setIsInviteOpen(false)}
         onSuccess={() => { setIsInviteOpen(false); router.refresh() }}
         currentCompanyId={currentCompanyId}
+      />
+      <AssignExistingUserModal
+        isOpen={isExistingOpen}
+        onClose={() => setIsExistingOpen(false)}
+        allUsers={allTenantUsers}
+        currentUsers={users}
+        currentCompanyId={currentCompanyId}
+        onAssigned={() => { setIsExistingOpen(false); router.refresh() }}
       />
     </div>
   )
