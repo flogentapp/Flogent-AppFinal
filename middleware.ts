@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
             }
         }
 
-        if (tenantId && isOnboardingRoute) {
+        if (tenantId && isOnboardingRoute && !request.nextUrl.searchParams.has('mode')) {
             return NextResponse.redirect(new URL('/app', request.url))
         }
 

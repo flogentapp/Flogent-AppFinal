@@ -64,7 +64,7 @@ export async function completeOnboarding(formData: FormData) {
 // --- JOIN EXISTING (FIXED) ---
 export async function joinExistingTenant(formData: FormData) {
     let workspaceId = formData.get('workspaceId') as string
-    
+
     // AGGRESSIVE CLEANING
     if (workspaceId) {
         workspaceId = workspaceId.replace(/['""Â«Â»\s]/g, '').trim()
@@ -80,6 +80,8 @@ export async function joinExistingTenant(formData: FormData) {
     if (!user) return { error: 'Not logged in' }
 
     const adminClient = createAdminClient()
+
+    // 2. Fetch Tenant
     const { data: tenant, error: findError } = await adminClient
         .from('tenants')
         .select('id, name')
@@ -90,21 +92,67 @@ export async function joinExistingTenant(formData: FormData) {
         return { error: 'Workspace not found. Check the ID.' }
     }
 
-    // REMOVED 'onboarded: true' FROM BELOW:
+    // 3. Fetch First Company in Tenant
+    const { data: companies } = await adminClient
+        .from('companies')
+        .select('id')
+        .eq('tenant_id', tenant.id)
+        .eq('status', 'active')
+        .limit(1)
+
+    const firstCompanyId = companies?.[0]?.id
+
+    // 4. Check for existing profile to preserve data
+    const { data: existingProfile } = await adminClient
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+    const targetCompanyId = existingProfile?.current_company_id || firstCompanyId
+
+    // 5. Upsert Profile (Preserving existing name if available)
     const { error: profileError } = await adminClient.from('profiles').upsert({
         id: user.id,
         email: user.email,
-        first_name: user.user_metadata.first_name || 'New',
-        last_name: user.user_metadata.last_name || 'User',
+        first_name: user.user_metadata.first_name || existingProfile?.first_name || 'New',
+        last_name: user.user_metadata.last_name || existingProfile?.last_name || 'User',
         tenant_id: tenant.id,
+        current_company_id: targetCompanyId,
         status: 'active'
     })
 
     if (profileError) return { error: 'Join failed: ' + profileError.message }
 
-    // We still set 'onboarded: true' here (where it belongs):
+    // 6. Ensure default role assignment if company exists
+    if (targetCompanyId) {
+        // Check if role already exists
+        const { data: existingRole } = await adminClient
+            .from('user_role_assignments')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('scope_type', 'company')
+            .eq('scope_id', targetCompanyId)
+            .maybeSingle()
+
+        if (!existingRole) {
+            await adminClient.from('user_role_assignments').insert({
+                user_id: user.id,
+                tenant_id: tenant.id,
+                role: 'Member',
+                scope_type: 'company',
+                scope_id: targetCompanyId
+            })
+        }
+    }
+
+    // 7. Update Auth Metadata
     await adminClient.auth.admin.updateUserById(user.id, {
-        user_metadata: { onboarded: true, tenant_id: tenant.id }
+        user_metadata: {
+            onboarded: true,
+            tenant_id: tenant.id,
+            current_company_id: targetCompanyId
+        }
     })
 
     revalidatePath('/', 'layout')

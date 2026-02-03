@@ -143,7 +143,7 @@ export async function getReportData() {
 
   let query = supabase
     .from('time_entries')
-    .select('*, profiles(first_name, last_name), projects(*)')
+    .select('*, profiles(first_name, last_name), projects(*, departments(name))')
     .eq('tenant_id', profile.tenant_id)
     .neq('status', 'rejected')
 

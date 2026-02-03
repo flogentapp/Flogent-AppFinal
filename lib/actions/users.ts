@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { sendCredentialsEmail } from '@/lib/mailjet'
 
 export async function inviteUser(formData: FormData) {
     const supabase = await createClient()
@@ -49,7 +50,19 @@ export async function inviteUser(formData: FormData) {
 
     const newUser = userData.user
 
-    // 3. Create Profile
+    // 4. Determine Company for New User
+    let targetCompanyId = profile.current_company_id
+    if (!targetCompanyId) {
+        const { data: companies } = await adminClient
+            .from('companies')
+            .select('id')
+            .eq('tenant_id', profile.tenant_id)
+            .eq('status', 'active')
+            .limit(1)
+        targetCompanyId = companies?.[0]?.id
+    }
+
+    // 5. Create Profile
     await adminClient.from('profiles').insert({
         id: newUser.id,
         tenant_id: profile.tenant_id,
@@ -57,37 +70,30 @@ export async function inviteUser(formData: FormData) {
         first_name: firstName,
         last_name: lastName,
         status: 'active',
-        current_company_id: profile.current_company_id
+        current_company_id: targetCompanyId
     })
 
-    // 4. Assign Default Role for the Company (Isolation Fix)
-    if (profile.current_company_id) {
+    // 6. Assign Default Role for the Company (Isolation Fix)
+    if (targetCompanyId) {
         await adminClient.from('user_role_assignments').insert({
             user_id: newUser.id,
             tenant_id: profile.tenant_id,
             role: 'Member',
             scope_type: 'company',
-            scope_id: profile.current_company_id,
+            scope_id: targetCompanyId,
             created_by: user.id
         })
     }
 
     const inviterName = `${user.user_metadata.first_name || 'Admin'} ${user.user_metadata.last_name || ''}`.trim()
 
-    // 4. Send Credentials Email (FIXED)
-    try {
-        const { sendCredentialsEmail } = await import('@/lib/mailjet')
+    // Send Credentials Email
+    const emailResult = await sendCredentialsEmail(email, password, inviterName, firstName, profile.tenant_id)
 
-        // CRITICAL FIX: We are now passing profile.tenant_id as the 5th argument!
-        const emailResult = await sendCredentialsEmail(email, password, inviterName, firstName, profile.tenant_id)
-
-        if (!emailResult.success) {
-            console.error('Mailjet Error:', emailResult.error)
-            // CRITICAL FIX: Return the REAL error message so you can see it on screen
-            return { error: 'User created, BUT email failed: ' + emailResult.error }
-        }
-    } catch (importErr: any) {
-        return { error: 'System Error: ' + importErr.message }
+    if (!emailResult.success) {
+        console.error('Mailjet Error:', emailResult.error)
+        // CRITICAL FIX: Return the REAL error message so you can see it on screen
+        return { error: 'User created, BUT email failed: ' + emailResult.error }
     }
 
     revalidatePath('/admin/users')
