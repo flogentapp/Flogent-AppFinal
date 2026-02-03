@@ -51,7 +51,7 @@ export async function inviteUser(formData: FormData) {
     const newUser = userData.user
 
     // 4. Determine Company for New User
-    let targetCompanyId = profile.current_company_id
+    let targetCompanyId = formData.get('companyId') as string || profile.current_company_id
     if (!targetCompanyId) {
         const { data: companies } = await adminClient
             .from('companies')
@@ -73,17 +73,9 @@ export async function inviteUser(formData: FormData) {
         current_company_id: targetCompanyId
     })
 
-    // 6. Assign Default Role for the Company (Isolation Fix)
-    if (targetCompanyId) {
-        await adminClient.from('user_role_assignments').insert({
-            user_id: newUser.id,
-            tenant_id: profile.tenant_id,
-            role: 'Member',
-            scope_type: 'company',
-            scope_id: targetCompanyId,
-            created_by: user.id
-        })
-    }
+    // 6. Role assignments are handled via RBAC for managers only. 
+    // Regular users (who just log time) do not need explicit rows in user_role_assignments
+    // for visibility, as the AppNavbar now falls back to tenant-wide visibility if no roles exist.
 
     const inviterName = `${user.user_metadata.first_name || 'Admin'} ${user.user_metadata.last_name || ''}`.trim()
 

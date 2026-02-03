@@ -72,7 +72,8 @@ export async function AppNavbar() {
 
             // FINAL SAFETY FALLBACK: If we still have no companies but we HAVE a tenant,
             // fetch all companies in the tenant via adminClient (guaranteed to work)
-            if (companies.length === 0) {
+            // This fix ensures that even if role assignments fail, the user can see and switch to any company in their tenant.
+            if (companies.length === 0 && activeTenantId) {
                 const { data } = await adminClient
                     .from('companies')
                     .select('id, name')

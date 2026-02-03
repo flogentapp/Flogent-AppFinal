@@ -124,27 +124,8 @@ export async function joinExistingTenant(formData: FormData) {
 
     if (profileError) return { error: 'Join failed: ' + profileError.message }
 
-    // 6. Ensure default role assignment if company exists
-    if (targetCompanyId) {
-        // Check if role already exists
-        const { data: existingRole } = await adminClient
-            .from('user_role_assignments')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('scope_type', 'company')
-            .eq('scope_id', targetCompanyId)
-            .maybeSingle()
-
-        if (!existingRole) {
-            await adminClient.from('user_role_assignments').insert({
-                user_id: user.id,
-                tenant_id: tenant.id,
-                role: 'Member',
-                scope_type: 'company',
-                scope_id: targetCompanyId
-            })
-        }
-    }
+    // 6. Role assignments are not required for regular users anymore
+    // (Navbar handles tenant-wide visibility fallback)
 
     // 7. Update Auth Metadata
     await adminClient.auth.admin.updateUserById(user.id, {
