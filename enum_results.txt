@@ -1,8 +1,0 @@
-﻿Testing role values...
-? User: Result: Invalid company scope_id for tenant
-Γ¥î Member: Not valid
-Γ¥î Employee: Not valid
-Γ¥î Staff: Not valid
-? DepartmentHead: Result: Invalid company scope_id for tenant
-? ProjectLeader: Result: Invalid company scope_id for tenant
-? CEO: Result: Invalid company scope_id for tenant

@@ -7,8 +7,8 @@ export async function sendCredentialsEmail(
     userName: string,
     tenantId: string
 ) {
-    const MJ_API_KEY = process.env.MJ_API_KEY || process.env.MAILJET_API_KEY
-    const MJ_API_SECRET = process.env.MJ_API_SECRET || process.env.MAILJET_SECRET_KEY
+    const MJ_API_KEY = process.env.MAILJET_API_KEY || process.env.MJ_API_KEY || process.env.MJ_APIKEY_PUBLIC
+    const MJ_API_SECRET = process.env.MAILJET_SECRET_KEY || process.env.MAILJET_API_SECRET || process.env.MJ_API_SECRET || process.env.MJ_APIKEY_PRIVATE
 
     // 1. Detect Host via headers
     let siteUrl = ''
