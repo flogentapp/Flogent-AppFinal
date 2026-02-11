@@ -82,7 +82,7 @@ export function WeekView({ entries, projects, user, companies }: any) {
 
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Weekly Total</span>
-            <span className="text-xl font-black text-indigo-600 leading-none">{weekTotal.toFixed(1)}<span className="text-xs font-bold text-gray-400 ml-0.5">h</span></span>
+            <span className="text-xl font-black text-indigo-600 leading-none">{weekTotal.toFixed(2).replace(/\.00$/, '')}<span className="text-xs font-bold text-gray-400 ml-0.5">h</span></span>
           </div>
         </div>
 

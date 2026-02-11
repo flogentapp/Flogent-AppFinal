@@ -50,7 +50,7 @@ export function TimeEntryCard({ entry, onEdit }: TimeEntryCardProps) {
                 <div className="flex items-center gap-2 ml-3">
                     <div className="text-right">
                         <div className="text-sm font-bold text-gray-900">
-                            {entry.hours}h {entry.minutes}m
+                            {entry.minutes > 0 ? `${entry.hours}h ${entry.minutes}m` : `${Number(entry.hours).toFixed(2).replace(/\.00$/, '')}h`}
                         </div>
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${statusColors[entry.status as keyof typeof statusColors]}`}>
                             {entry.status.toUpperCase()}

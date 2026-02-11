@@ -15,12 +15,12 @@ type Entry = {
   tenant?: { name: string }
 }
 
-export function DayDetailModal({ 
-  isOpen, 
-  onClose, 
-  date, 
-  entries 
-}: { 
+export function DayDetailModal({
+  isOpen,
+  onClose,
+  date,
+  entries
+}: {
   isOpen: boolean
   onClose: () => void
   date: Date | null
@@ -37,7 +37,7 @@ export function DayDetailModal({
           <DialogTitle className="flex justify-between items-center text-xl">
             <span>{format(date, 'EEEE, MMMM do')}</span>
             <span className="text-sm font-normal text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              {totalHours}h Total
+              {totalHours.toFixed(2).replace(/\.00$/, '')}h Total
             </span>
           </DialogTitle>
         </DialogHeader>
@@ -51,20 +51,20 @@ export function DayDetailModal({
           ) : (
             entries.map((entry) => (
               <div key={entry.id} className="p-4 border rounded-xl bg-gray-50/50 space-y-3 hover:bg-gray-50 transition-colors">
-                
+
                 {/* Header: Project & Hours */}
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-bold text-gray-900">{entry.project?.name || 'No Project'}</h4>
                     {entry.tenant && (
-                        <div className="flex items-center text-xs text-gray-500 mt-0.5">
-                            <Building2 className="w-3 h-3 mr-1" />
-                            {entry.tenant.name}
-                        </div>
+                      <div className="flex items-center text-xs text-gray-500 mt-0.5">
+                        <Building2 className="w-3 h-3 mr-1" />
+                        {entry.tenant.name}
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-lg">{entry.hours}h</span>
+                    <span className="font-mono font-bold text-lg">{Number(entry.hours).toFixed(2).replace(/\.00$/, '')}h</span>
                   </div>
                 </div>
 
@@ -78,7 +78,7 @@ export function DayDetailModal({
 
                 {/* Footer: Status */}
                 <div className="flex justify-end">
-                    <StatusBadge status={entry.status} />
+                  <StatusBadge status={entry.status} />
                 </div>
               </div>
             ))

@@ -48,7 +48,7 @@ export function AddEntryModal({ isOpen, onClose, projects }: any) {
             </div>
             <div>
               <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Hours</label>
-              <Input type='number' name='hours' step='0.25' required placeholder='e.g. 4.0' />
+              <Input type='number' name='hours' step='any' required placeholder='e.g. 4.12' />
             </div>
           </div>
 

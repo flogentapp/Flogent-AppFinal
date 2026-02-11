@@ -11,7 +11,7 @@ export async function logTime(formData: FormData) {
   // Extract Form Data
   const projectId = formData.get('project_id') as string
   const dateStr = formData.get('date') as string
-  const hours = parseFloat(formData.get('hours') as string)
+  const hours = parseFloat((formData.get('hours') as string).replace(',', '.'))
   const description = formData.get('description') as string
 
   // Additional Work Logic
@@ -28,18 +28,18 @@ export async function logTime(formData: FormData) {
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   if (!profile) return { error: 'Profile not found' }
 
-  // INSERT into 'time_entries' (Correct Table)
+  // INSERT into 'time_entries' (Directly storing the decimal hours)
   const { error } = await supabase.from('time_entries').insert({
     user_id: user.id,
     tenant_id: profile.tenant_id,
     project_id: projectId,
-    entry_date: dateStr,                // Correct Column: entry_date
-    hours: hours,
-    minutes: 0,                         // Defaulting minutes to 0
+    entry_date: dateStr,
+    hours: hours,                       // Store raw decimal (e.g. 4.12)
+    minutes: 0,                         // Reset minutes for new decimal entries
     description: description,
     is_additional_work: isAdditionalWork,
-    additional_work_description: isAdditionalWork ? additionalWorkDesc : null, // Correct Column
-    status: 'draft',                    // Default status per your SQL
+    additional_work_description: isAdditionalWork ? additionalWorkDesc : null,
+    status: 'draft',
     created_by: user.id
   })
 
@@ -100,7 +100,11 @@ export async function getPendingApprovals() {
 
   const { data } = await query.order('entry_date', { ascending: false })
 
-  return data?.map(d => ({ ...d, date: d.entry_date })) || []
+  return data?.map(d => ({
+    ...d,
+    date: d.entry_date,
+    hours: Number(d.hours) + (Number(d.minutes) / 60)
+  })) || []
 }
 
 export async function updateTimesheetStatus(id: string, status: 'approved' | 'rejected') {
@@ -172,7 +176,11 @@ export async function getReportData() {
 
   const { data } = await query.order('entry_date', { ascending: false })
 
-  return data?.map(d => ({ ...d, date: d.entry_date })) || []
+  return data?.map(d => ({
+    ...d,
+    date: d.entry_date,
+    hours: Number(d.hours) + (Number(d.minutes) / 60)
+  })) || []
 }
 
 
