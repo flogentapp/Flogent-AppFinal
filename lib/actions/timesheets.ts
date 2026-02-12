@@ -217,9 +217,78 @@ export async function deleteTimeEntry(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  // Verify status before deleting
+  const { data: entry } = await supabase
+    .from('time_entries')
+    .select('status')
+    .eq('id', id)
+    .single()
+
+  if (!entry) return { error: 'Entry not found' }
+  if (entry.status !== 'draft' && entry.status !== 'rejected') {
+    return { error: 'Cannot delete a submitted or approved entry.' }
+  }
+
   const { error } = await supabase.from('time_entries').delete().eq('id', id)
 
   if (error) return { error: error.message }
+  revalidatePath('/timesheets/my')
+  revalidatePath('/timesheets/approvals')
+  revalidatePath('/timesheets/reports')
+  return { success: true }
+}
+
+export async function updateTimeEntry(id: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Extract Form Data
+  const projectId = formData.get('project_id') as string
+  const dateStr = formData.get('date') as string
+  const hours = parseFloat((formData.get('hours') as string).replace(',', '.'))
+  const description = formData.get('description') as string
+
+  // Additional Work Logic
+  const isAdditionalWork = formData.get('is_additional_work') === 'on'
+  const additionalWorkDesc = formData.get('additional_work_reason') as string
+
+  if (!projectId || !dateStr || !hours) return { error: 'Missing fields' }
+
+  // Validation
+  if (isAdditionalWork && !additionalWorkDesc) {
+    return { error: 'Please explain why this is Additional Work.' }
+  }
+
+  // Verify status before updating
+  const { data: entry } = await supabase
+    .from('time_entries')
+    .select('status')
+    .eq('id', id)
+    .single()
+
+  if (!entry) return { error: 'Entry not found' }
+  if (entry.status !== 'draft' && entry.status !== 'rejected') {
+    return { error: 'Cannot edit a submitted or approved entry.' }
+  }
+
+  const { error } = await supabase.from('time_entries').update({
+    project_id: projectId,
+    entry_date: dateStr,
+    hours: hours,
+    description: description,
+    is_additional_work: isAdditionalWork,
+    additional_work_description: isAdditionalWork ? additionalWorkDesc : null,
+    status: 'draft', // Reset to draft if it was rejected
+    updated_at: new Date().toISOString(),
+    updated_by: user.id
+  }).eq('id', id)
+
+  if (error) {
+    console.error('Update Time Error:', error)
+    return { error: error.message }
+  }
+
   revalidatePath('/timesheets/my')
   revalidatePath('/timesheets/approvals')
   revalidatePath('/timesheets/reports')

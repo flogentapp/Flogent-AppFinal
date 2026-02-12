@@ -185,6 +185,7 @@ export function WeekView({ entries, projects, user, companies }: any) {
         onClose={() => setIsViewOpen(false)}
         date={viewDate}
         entries={viewDate ? getDayEntries(viewDate) : []}
+        projects={projects}
       />
     </div>
   )
