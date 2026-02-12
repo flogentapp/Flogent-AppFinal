@@ -2,13 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, FileText, CheckSquare, BookOpen, Calendar, Shield, ArrowRight } from 'lucide-react'
+import {
+    Clock,
+    FileText,
+    CheckSquare,
+    Calendar,
+    Shield,
+    ArrowRight,
+    Check,
+    Grid,
+    LayoutDashboard,
+    Building2,
+    Users2
+} from 'lucide-react'
 
-export default async function HubPage({
-    searchParams,
-}: {
-    searchParams: { error?: string }
-}) {
+export default async function HubPage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -16,183 +24,178 @@ export default async function HubPage({
 
     const adminClient = createAdminClient()
 
-    // Get user's tenant (Try adminClient if profile is inaccessible)
+    // 1. Fetch Stats
     const { data: profile } = await adminClient
         .from('profiles')
-        .select('tenant_id, first_name')
+        .select('tenant_id, first_name, current_company_id, current_department_id, current_project_id')
         .eq('id', user.id)
         .single()
 
     const activeTenantId = profile?.tenant_id || user.user_metadata?.tenant_id
+    if (!activeTenantId) redirect('/onboarding')
 
-    if (!activeTenantId) {
-        redirect('/onboarding')
-    }
+    // Get this week's hours
+    const today = new Date()
+    const startOfWeekDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1)) // Monday
 
-    // Get enabled apps for this tenant
-    const { data: subscriptions } = await adminClient
+    const { data: weekEntries } = await supabase
+        .from('time_entries')
+        .select('hours, minutes')
+        .eq('user_id', user.id)
+        .gte('entry_date', startOfWeekDate.toISOString().split('T')[0])
+
+    const totalHours = weekEntries?.reduce((acc, curr) => acc + Number(curr.hours) + (Number(curr.minutes) / 60), 0) || 0
+
+    const firstName = profile?.first_name || user.user_metadata?.first_name || 'Guest'
+
+    // 2. Fetch Enabled Apps
+    const { data: subs } = await adminClient
         .from('tenant_app_subscriptions')
-        .select('app_name, enabled')
+        .select('app_name')
         .eq('tenant_id', activeTenantId)
         .eq('enabled', true)
 
-    const enabledApps = new Set(subscriptions?.map(s => s.app_name) || [])
+    const enabledApps = subs?.map(s => s.app_name) || []
 
-    // Define all possible apps
-    const allApps = [
+    const appMetadata = [
         {
-            name: 'timesheets',
-            title: 'Timesheets',
-            description: 'Track time, manage approvals, generate reports',
-            icon: <Clock className="w-6 h-6" />,
-            bigIcon: <Clock className="w-24 h-24 text-indigo-600" />,
+            id: 'timesheets',
+            name: 'Timesheets',
+            description: 'Track precise working hours, manage project allocations, and handle weekly approvals.',
+            icon: Clock,
             href: '/timesheets/my',
-            color: 'bg-blue-500'
+            active: enabledApps.includes('timesheets'),
+            color: 'from-indigo-600 to-violet-700',
+            iconColor: 'bg-white/20 text-white'
         },
         {
-            name: 'documents',
-            title: 'Documents',
-            description: 'Manage project documents, version control',
-            icon: <FileText className="w-6 h-6" />,
-            bigIcon: <FileText className="w-24 h-24 text-green-600" />,
-            href: '/documents',
-            color: 'bg-green-500'
+            id: 'documents',
+            name: 'Documents',
+            description: 'Centralized cloud storage for company policies, contracts, and project documentation.',
+            icon: FileText,
+            href: '#',
+            active: enabledApps.includes('documents'),
+            color: 'from-slate-800 to-slate-900',
+            iconColor: 'bg-slate-700 text-slate-300'
         },
         {
-            name: 'tasks',
-            title: 'Tasks',
-            description: 'Task management, workflows, assignments',
-            icon: <CheckSquare className="w-6 h-6" />,
-            bigIcon: <CheckSquare className="w-24 h-24 text-purple-600" />,
-            href: '/tasks',
-            color: 'bg-purple-500'
-        },
-        {
-            name: 'diary',
-            title: 'Daily Diary',
-            description: 'Site diaries, daily logs, progress tracking',
-            icon: <BookOpen className="w-6 h-6" />,
-            bigIcon: <BookOpen className="w-24 h-24 text-orange-600" />,
-            href: '/diary',
-            color: 'bg-orange-500'
-        },
-        {
-            name: 'planner',
-            title: 'Planner',
-            description: 'Resource planning, scheduling, capacity',
-            icon: <Calendar className="w-6 h-6" />,
-            bigIcon: <Calendar className="w-24 h-24 text-red-600" />,
-            href: '/planner',
-            color: 'bg-red-500'
+            id: 'tasks',
+            name: 'Task Manager',
+            description: 'Intelligent task tracking with priority management and team collaboration boards.',
+            icon: CheckSquare,
+            href: '#',
+            active: enabledApps.includes('tasks'),
+            color: 'from-indigo-500 to-indigo-600',
+            iconColor: 'bg-indigo-400/30 text-indigo-100'
         }
     ]
 
-    // Filter to only enabled apps
-    const availableApps = allApps.filter(app => enabledApps.has(app.name))
-
-    const firstName = profile?.first_name || user.user_metadata?.first_name || 'there'
-
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-            {(await searchParams).error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
-                    <p className="text-red-800 font-medium flex items-center gap-2">
-                        <Shield className="w-5 h-5" />
-                        {(await searchParams).error === 'app_not_enabled'
-                            ? 'This app is not enabled for your organization. Contact your administrator.'
-                            : 'Access Denied'}
-                    </p>
+        <div className="p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* WELCOME SECTION */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div>
+                    <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                        Hello, {firstName}
+                    </h1>
+                    <p className="text-slate-500 mt-3 font-semibold text-sm sm:text-lg">Welcome to your workstation. Select an application to continue.</p>
                 </div>
-            )}
-
-            <div className="mb-8">
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                    Welcome back, {firstName}
-                </h1>
-                <p className="text-slate-500 mt-2 font-medium">Select an app to get started</p>
+                <div className="flex items-center gap-4 bg-white p-3 rounded-[24px] border border-slate-100 shadow-sm w-full lg:w-auto">
+                    <div className="flex-1 lg:flex-none px-6 py-2 text-center text-nowrap">
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Tracked This Week</div>
+                        <div className="text-2xl font-black text-indigo-600">{totalHours.toFixed(1)}h</div>
+                    </div>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-8 space-y-8">
-                    {/* Administration - Always available */}
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Core</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                            <Link href="/admin/companies" className="group relative overflow-hidden bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300">
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <Shield className="w-24 h-24 text-indigo-600" />
-                                </div>
-                                <div className="relative z-10 flex flex-col h-full justify-between">
-                                    <div>
-                                        <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4 text-indigo-600 group-hover:scale-110 transition-transform duration-300">
-                                            <Shield className="w-6 h-6" />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-slate-900 mb-2">Administration</h3>
-                                        <p className="text-slate-500 text-sm leading-relaxed">
-                                            Manage companies, departments, users, and app subscriptions.
-                                        </p>
-                                    </div>
-                                    <div className="mt-6 flex items-center text-indigo-600 font-bold text-sm gap-2 group-hover:translate-x-1 transition-transform">
-                                        Manage Settings <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
-                            </Link>
-                        </div>
+            {/* APPS GRID */}
+            <div>
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                        <Grid className="w-4 h-4 text-white" />
                     </div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase tracking-widest text-sm">Your Applications</h3>
+                </div>
 
-                    {/* Available Apps */}
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Your Apps</h2>
-                        {availableApps.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {availableApps.map(app => (
-                                    <Link key={app.name} href={app.href} className="group relative overflow-hidden bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300">
-                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                            {app.bigIcon}
-                                        </div>
-                                        <div className="relative z-10 flex flex-col h-full justify-between">
-                                            <div>
-                                                <div className={`w-12 h-12 ${app.name === 'timesheets' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                                                    {app.icon}
-                                                </div>
-                                                <h3 className="text-xl font-bold text-slate-900 mb-2">{app.title}</h3>
-                                                <p className="text-slate-500 text-sm leading-relaxed">
-                                                    {app.description}
-                                                </p>
-                                            </div>
-                                            <div className="mt-6 flex items-center text-indigo-600 font-bold text-sm gap-2 group-hover:translate-x-1 transition-transform">
-                                                Launch App <ArrowRight className="w-4 h-4" />
-                                            </div>
-                                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {appMetadata.map((app) => (
+                        <div
+                            key={app.id}
+                            className={`relative group h-full`}
+                        >
+                            {!app.active && (
+                                <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-10 rounded-[40px] flex items-center justify-center animate-in fade-in">
+                                    <div className="bg-slate-900 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl">
+                                        <Shield className="w-3 h-3" /> Locked
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className={`
+                                h-full flex flex-col p-10 rounded-[40px] shadow-sm transition-all duration-300
+                                ${app.active
+                                    ? `bg-gradient-to-br ${app.color} text-white hover:shadow-2xl hover:shadow-indigo-200 hover:-translate-y-1`
+                                    : 'bg-white border border-slate-100 grayscale opacity-40'}
+                            `}>
+                                <div className={`w-14 h-14 ${app.iconColor} rounded-[20px] flex items-center justify-center mb-10`}>
+                                    <app.icon className="w-7 h-7" />
+                                </div>
+
+                                <div className="flex-1">
+                                    <h3 className="text-2xl font-black mb-3">{app.name}</h3>
+                                    <p className={`text-sm font-medium leading-relaxed opacity-70 mb-10`}>
+                                        {app.description}
+                                    </p>
+                                </div>
+
+                                {app.active ? (
+                                    <Link
+                                        href={app.href}
+                                        className="inline-flex items-center justify-between bg-white text-indigo-900 px-6 py-4 rounded-[24px] font-black text-xs uppercase tracking-widest group-hover:scale-105 transition-all"
+                                    >
+                                        <span>Open Application</span>
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                     </Link>
-                                ))}
+                                ) : (
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-auto pt-10 border-t border-slate-100">
+                                        Subscription Required
+                                    </div>
+                                )}
                             </div>
-                        ) : (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-                                <p className="text-yellow-800 font-medium">
-                                    No apps are currently enabled for your organization.
-                                    <br />
-                                    <span className="text-sm font-normal">Contact your administrator to enable apps in the Admin section.</span>
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    ))}
                 </div>
+            </div>
 
-                {/* Context Section */}
-                <div className="lg:col-span-4 space-y-8">
-                    <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-6 opacity-10">
-                            <Shield className="w-32 h-32" />
-                        </div>
-                        <div className="relative z-10">
-                            <h3 className="font-bold text-lg mb-2">Need access?</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                                Apps must be enabled by your Tenant Administrator in the Admin console.
-                            </p>
-                        </div>
+            {/* QUICK ACCESS / SETTINGS */}
+            <div className="pt-10 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Link
+                    href="/admin/companies"
+                    className="flex items-center gap-6 p-8 bg-slate-50 rounded-[32px] border border-transparent hover:border-indigo-100 hover:bg-white transition-all group"
+                >
+                    <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                        <Building2 className="w-6 h-6" />
                     </div>
-                </div>
+                    <div>
+                        <div className="font-black text-slate-900">Organization Settings</div>
+                        <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Manage companies & structure</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 ml-auto text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+                </Link>
+
+                <Link
+                    href="/admin/users"
+                    className="flex items-center gap-6 p-8 bg-slate-50 rounded-[32px] border border-transparent hover:border-indigo-100 hover:bg-white transition-all group"
+                >
+                    <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                        <Users2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <div className="font-black text-slate-900">Team Management</div>
+                        <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Users, roles and permissions</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 ml-auto text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+                </Link>
             </div>
         </div>
     )

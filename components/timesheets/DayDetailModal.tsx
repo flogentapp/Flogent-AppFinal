@@ -8,7 +8,7 @@ import { Clock, AlignLeft, Building2, Pencil, Trash2, Loader2 } from 'lucide-rea
 import { Button } from '@/components/ui/Button'
 import { deleteTimeEntry } from '@/lib/actions/timesheets'
 import { toast } from 'sonner'
-import { EditEntryModal } from './EditEntryModal'
+import { AddEntryModal } from './AddEntryModal'
 
 type Entry = {
   id: string
@@ -142,10 +142,10 @@ export function DayDetailModal({
         </DialogContent>
       </Dialog>
 
-      <EditEntryModal
+      <AddEntryModal
         isOpen={!!editingEntry}
         onClose={() => setEditingEntry(null)}
-        entry={editingEntry}
+        entryToEdit={editingEntry}
         projects={projects}
       />
     </>

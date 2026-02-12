@@ -23,8 +23,8 @@ export function ApprovalsTable({ entries, projects, companies }: any) {
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
                     {entries.map((entry: any) => (
-                        <tr
-                            key={entry.id}
+                        <tr 
+                            key={entry.id} 
                             // Clicking the row opens the View/Edit modal
                             className="hover:bg-indigo-50/30 transition-colors cursor-pointer"
                             onClick={(e) => {
@@ -62,12 +62,12 @@ export function ApprovalsTable({ entries, projects, companies }: any) {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div className="flex items-center justify-end gap-2">
-                                    <form action={async () => { await rejectTimeEntry(entry.id, 'Standard rejection') }}>
+                                    <form action={rejectTimeEntry.bind(null, entry.id, 'Standard rejection')}>
                                         <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Reject">
                                             <XCircle className="w-5 h-5" />
                                         </button>
                                     </form>
-                                    <form action={async () => { await approveTimeEntry(entry.id) }}>
+                                    <form action={approveTimeEntry.bind(null, entry.id)}>
                                         <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-transparent hover:border-green-100" title="Approve">
                                             <CheckCircle2 className="w-5 h-5" />
                                         </button>
@@ -84,6 +84,8 @@ export function ApprovalsTable({ entries, projects, companies }: any) {
                 isOpen={!!selectedEntry}
                 onClose={() => setSelectedEntry(null)}
                 entryToEdit={selectedEntry} // Passing this makes it viewable/editable
+                projects={projects}
+                companies={companies}
                 date={null}
             />
         </>

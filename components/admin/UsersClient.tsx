@@ -73,54 +73,116 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
         </div>
       </div>
 
-      <div className='bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden'>
-        <table className='min-w-full divide-y divide-gray-100'>
-          <thead className='bg-gray-50/50'>
-            <tr>
-              <th className='px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase'>User</th>
-              <th className='px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase'>Email</th>
-              <th className='px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase'>Assignments</th>
-              <th className='px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase'>Action</th>
-            </tr>
-          </thead>
-          <tbody className='divide-y divide-gray-100'>
-            {users.map((u: any) => {
-              const ms = membershipsByUser[u.id] || []
-              return (
-                <tr key={u.id} className='hover:bg-gray-50/50'>
-                  <td className='px-6 py-4'>
-                    <div className='text-sm font-bold text-gray-900'>{u.first_name} {u.last_name}</div>
-                    <div className='text-xs text-gray-400 capitalize'>{u.status || 'active'}</div>
-                  </td>
-                  <td className='px-6 py-4 text-sm text-gray-600'>{u.email}</td>
-                  <td className='px-6 py-4'>
-                    {ms.length > 0 ? (
-                      <div className='flex flex-wrap gap-2'>
-                        {ms.map((m: any) => (
-                          <span key={m.id} className='inline-flex items-center px-2 py-1 text-xs font-medium bg-indigo-50 text-indigo-700 rounded'>
-                            {m.projects?.name} ({m.role})
-                          </span>
-                        ))}
+      <div className="space-y-4">
+        {/* MOBILE CARDS */}
+        <div className="grid grid-cols-1 gap-4 md:hidden">
+          {users.map((u: any) => {
+            const ms = membershipsByUser[u.id] || []
+            const isDeleting = deletingId === u.id
+
+            return (
+              <div key={u.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-lg uppercase">
+                      {u.first_name?.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="font-black text-slate-900 leading-tight">{u.first_name} {u.last_name}</div>
+                      <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">{u.status || 'active'}</div>
+                    </div>
+                  </div>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='text-red-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-1'
+                    disabled={isDeleting}
+                    onClick={() => handleRemove(u.id)}
+                  >
+                    {isDeleting ? <Loader2 className='w-5 h-5 animate-spin' /> : <Trash2 className='w-5 h-5' />}
+                  </Button>
+                </div>
+
+                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Contact Email</div>
+                  <div className="text-sm font-bold text-slate-700">{u.email}</div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] px-1">Project Access</div>
+                  {ms.length > 0 ? (
+                    <div className='flex flex-wrap gap-2'>
+                      {ms.map((m: any) => (
+                        <span key={m.id} className='px-3 py-1.5 text-xs font-black bg-white text-indigo-600 rounded-xl border border-indigo-50 shadow-sm'>
+                          {m.projects?.name} <span className="text-slate-400 mx-1">·</span> <span className="opacity-70">{m.role}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className='text-xs text-slate-400 font-bold italic px-1'>No active assignments</div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* DESKTOP TABLE */}
+        <div className='hidden md:block bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden'>
+          <table className='min-w-full divide-y divide-slate-100'>
+            <thead className='bg-slate-50/50'>
+              <tr>
+                <th className='px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Employee</th>
+                <th className='px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Email Address</th>
+                <th className='px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Project Roles</th>
+                <th className='px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Actions</th>
+              </tr>
+            </thead>
+            <tbody className='divide-y divide-slate-100'>
+              {users.map((u: any) => {
+                const ms = membershipsByUser[u.id] || []
+                return (
+                  <tr key={u.id} className='hover:bg-slate-50/50 transition-colors group'>
+                    <td className='px-8 py-5'>
+                      <div className='flex items-center gap-3'>
+                        <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 font-black text-xs uppercase group-hover:bg-white group-hover:shadow-sm transition-all">
+                          {u.first_name?.charAt(0)}
+                        </div>
+                        <div>
+                          <div className='text-sm font-black text-slate-900'>{u.first_name} {u.last_name}</div>
+                          <div className='text-[10px] text-slate-400 font-bold uppercase tracking-widest'>{u.status || 'active'}</div>
+                        </div>
                       </div>
-                    ) : <span className='text-xs text-gray-400'>No assignments</span>}
-                  </td>
-                  <td className='px-6 py-4 text-right'>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='text-red-500 hover:text-red-700 hover:bg-red-50'
-                      disabled={deletingId === u.id}
-                      onClick={() => handleRemove(u.id)}
-                      title="Remove from Company"
-                    >
-                      {deletingId === u.id ? <Loader2 className='w-4 h-4 animate-spin' /> : <Trash2 className='w-4 h-4' />}
-                    </Button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td className='px-8 py-5 text-sm font-semibold text-slate-600'>{u.email}</td>
+                    <td className='px-8 py-5'>
+                      {ms.length > 0 ? (
+                        <div className='flex flex-wrap gap-2'>
+                          {ms.map((m: any) => (
+                            <span key={m.id} className='inline-flex items-center px-2.5 py-1 text-[10px] font-black bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100'>
+                              {m.projects?.name} <span className="mx-1.5 opacity-30">|</span> {m.role}
+                            </span>
+                          ))}
+                        </div>
+                      ) : <span className='text-xs text-slate-400 font-bold italic'>No assignments</span>}
+                    </td>
+                    <td className='px-8 py-5 text-right'>
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        className='text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all'
+                        disabled={deletingId === u.id}
+                        onClick={() => handleRemove(u.id)}
+                      >
+                        {deletingId === u.id ? <Loader2 className='w-4 h-4 animate-spin' /> : <Trash2 className='w-4 h-4' />}
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <AssignUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} users={users} projects={projects} onAssigned={() => { setIsModalOpen(false); router.refresh() }} />

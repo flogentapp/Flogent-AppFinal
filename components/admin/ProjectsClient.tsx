@@ -26,63 +26,129 @@ export function ProjectsClient({ projects, users, currentCompanyId, permissions 
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {projects.map((project) => {
-                    const canManage = permissions.isOwner ||
-                        permissions.isCEO ||
-                        (permissions.isDepartmentHead && permissions.managedDepartmentIds.includes(project.department_id)) ||
-                        (permissions.isProjectLeader && permissions.managedProjectIds.includes(project.id));
+            <div className="space-y-4">
+                {/* MOBILE CARDS */}
+                <div className="grid grid-cols-1 gap-4 md:hidden">
+                    {projects.map((project) => {
+                        const canManage = permissions.isOwner ||
+                            permissions.isCEO ||
+                            (permissions.isDepartmentHead && permissions.managedDepartmentIds.includes(project.department_id)) ||
+                            (permissions.isProjectLeader && permissions.managedProjectIds.includes(project.id));
 
-                    return (
-                        <div
-                            key={project.id}
-                            className="w-full text-left bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group hover:border-indigo-100"
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                                    <Grid className="w-5 h-5 text-indigo-600" />
-                                </div>
-                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${project.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                    {project.status}
-                                </span>
-                            </div>
-
-                            {/* Department Badge */}
-                            <div className="mt-2 mb-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
-                                    {project.departments?.name || 'Unassigned'}
-                                </span>
-                            </div>
-
-                            <button
-                                onClick={() => setSelectedProject(project)}
-                                className="text-left w-full mt-3 font-bold text-gray-900 group-hover:text-indigo-600 transition-colors hover:underline decoration-indigo-600 decoration-2 underline-offset-2"
+                        return (
+                            <div
+                                key={project.id}
+                                className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4"
                             >
-                                {project.name}
-                            </button>
-                            <p className="text-xs text-gray-500 font-mono mt-1">{project.code || 'No Code'}</p>
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+                                            <Grid className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">
+                                                {project.code || 'NO-CODE'}
+                                            </div>
+                                            <div className="font-black text-slate-900 leading-tight">{project.name}</div>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${project.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                                        {project.status}
+                                    </span>
+                                </div>
 
-                            <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between w-full">
-                                {canManage && (
-                                    <button
-                                        onClick={() => setAssignUserProject(project)}
-                                        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-all"
-                                    >
-                                        <UserPlus className="w-3.5 h-3.5" />
-                                        Add Member
-                                    </button>
-                                )}
-
-                                <button
-                                    onClick={() => setSelectedProject(project)}
-                                    className="text-xs text-indigo-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    Edit Details →
-                                </button>
+                                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Department</span>
+                                        <span className="text-xs font-bold text-slate-700">{project.departments?.name || 'Unassigned'}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {canManage && (
+                                            <button
+                                                onClick={() => setAssignUserProject(project)}
+                                                className="p-2 bg-white rounded-xl border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                                            >
+                                                <UserPlus className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => setSelectedProject(project)}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
+
+                {/* DESKTOP TABLE */}
+                <div className='hidden md:block bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden'>
+                    <table className='min-w-full divide-y divide-slate-100'>
+                        <thead className='bg-slate-50/50'>
+                            <tr>
+                                <th className='px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Project</th>
+                                <th className='px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Department</th>
+                                <th className='px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Code</th>
+                                <th className='px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Status</th>
+                                <th className='px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]'>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className='divide-y divide-slate-100'>
+                            {projects.map((project) => {
+                                const canManage = permissions.isOwner ||
+                                    permissions.isCEO ||
+                                    (permissions.isDepartmentHead && permissions.managedDepartmentIds.includes(project.department_id)) ||
+                                    (permissions.isProjectLeader && permissions.managedProjectIds.includes(project.id));
+
+                                return (
+                                    <tr key={project.id} className='hover:bg-slate-50/50 transition-colors group'>
+                                        <td className='px-8 py-5'>
+                                            <div className='flex items-center gap-3'>
+                                                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 font-black group-hover:bg-white group-hover:shadow-sm transition-all">
+                                                    <Grid className="w-5 h-5" />
+                                                </div>
+                                                <div className='font-black text-slate-900 group-hover:text-indigo-600 transition-colors'>{project.name}</div>
+                                            </div>
+                                        </td>
+                                        <td className='px-8 py-5'>
+                                            <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] uppercase font-black tracking-tight border border-slate-200">
+                                                {project.departments?.name || 'Unassigned'}
+                                            </span>
+                                        </td>
+                                        <td className='px-8 py-5 text-sm font-black text-slate-400 font-mono'>{project.code || '--'}</td>
+                                        <td className='px-8 py-5 text-center'>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${project.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                                                {project.status}
+                                            </span>
+                                        </td>
+                                        <td className='px-8 py-5 text-right'>
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {canManage && (
+                                                    <button
+                                                        onClick={() => setAssignUserProject(project)}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl hover:shadow-sm transition-all"
+                                                        title="Add Member"
+                                                    >
+                                                        <UserPlus className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setSelectedProject(project)}
+                                                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95 transition-all"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <EditProjectSheet

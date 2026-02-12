@@ -4,7 +4,17 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toggleAppSubscription } from '@/lib/actions/admin'
 import { Toaster, toast } from 'sonner'
-import { Shield, Package, Lock } from 'lucide-react'
+import {
+    Shield,
+    Package,
+    Lock,
+    Clock,
+    FileText,
+    CheckSquare,
+    LayoutDashboard,
+    Grid,
+    Loader2
+} from 'lucide-react'
 
 export default function AppSubscriptionsPage() {
     const [loading, setLoading] = useState(true)
@@ -77,69 +87,90 @@ export default function AppSubscriptionsPage() {
     )
 
     const allApps = [
-        { key: 'timesheets', name: 'Timesheets', description: 'Track time, submit for approval, and generate reports.' },
-        { key: 'documents', name: 'Documents', description: 'Manage project documents with version control.' },
-        { key: 'tasks', name: 'Tasks', description: 'Create and track project tasks and workflows.' },
-        { key: 'diary', name: 'Daily Diary', description: 'Site diaries and daily progress logs.' },
-        { key: 'planner', name: 'Planner', description: 'Resource planning and scheduling.' }
+        { key: 'timesheets', name: 'Timesheets', icon: Clock, description: 'Track time, submit for approval, and generate reports.' },
+        { key: 'documents', name: 'Documents', icon: FileText, description: 'Manage project documents with version control.' },
+        { key: 'tasks', name: 'Tasks', icon: CheckSquare, description: 'Create and track project tasks and workflows.' },
+        { key: 'diary', name: 'Daily Diary', icon: LayoutDashboard, description: 'Site diaries and daily progress logs.' },
+        { key: 'planner', name: 'Planner', icon: Package, description: 'Resource planning and scheduling.' }
     ]
 
     return (
-        <div className="space-y-6 max-w-4xl">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Package className="w-6 h-6 text-indigo-600" />
-                    App Subscriptions
-                </h1>
-                <p className="text-gray-500 text-sm mt-1">Enable or disable sub-apps for your organization. Only the Tenant Owner can manage this.</p>
-            </div>
-
-            {!isOwner && (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-                    <Lock className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div>
-                        <h3 className="text-sm font-bold text-yellow-800">Restricted Access</h3>
-                        <p className="text-sm text-yellow-700">Only the Tenant Owner can manage app subscriptions. You can view the status but cannot make changes.</p>
-                    </div>
+        <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="max-w-4xl">
+                <div>
+                    <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                        <Grid className="w-8 h-8 text-indigo-600" />
+                        App Subscriptions
+                    </h1>
+                    <p className="text-slate-500 text-sm sm:text-base mt-2 font-semibold italic">Enable or disable sub-apps for your organization. Manage your billing efficiently.</p>
                 </div>
-            )}
 
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 overflow-hidden">
-                {allApps.map(app => {
-                    const sub = subscriptions.find(s => s.app_name === app.key)
-                    const enabled = sub?.enabled || false
-                    const isProcessing = toggling === app.key
-
-                    return (
-                        <div key={app.key} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                            <div>
-                                <h3 className="font-bold text-gray-900 text-lg">{app.name}</h3>
-                                <p className="text-sm text-gray-500">{app.description}</p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <div className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded ${enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                    {enabled ? 'Active' : 'Inactive'}
-                                </div>
-                                {isOwner && (
-                                    <button
-                                        onClick={() => handleToggle(app.key, enabled)}
-                                        disabled={isProcessing}
-                                        className={`
-                            px-4 py-2 rounded-lg font-bold text-sm transition-all
-                            ${enabled
-                                                ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200'
-                                            }
-                            ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
-                        `}
-                                    >
-                                        {isProcessing ? 'Saving...' : (enabled ? 'Disable' : 'Enable')}
-                                    </button>
-                                )}
-                            </div>
+                {!isOwner && (
+                    <div className="mt-6 p-4 bg-amber-50 border border-amber-100 rounded-[24px] flex items-start gap-4">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-600 shadow-sm shrink-0">
+                            <Lock className="w-5 h-5" />
                         </div>
-                    )
-                })}
+                        <div>
+                            <h3 className="text-sm font-black text-amber-900">Restricted Access</h3>
+                            <p className="text-xs text-amber-700 font-medium leading-relaxed">Only the Tenant Owner can manage app subscriptions. Contact your administrator if you need to enable a new module.</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="mt-8 space-y-4">
+                    {allApps.map(app => {
+                        const sub = subscriptions.find(s => s.app_name === app.key)
+                        const enabled = sub?.enabled || false
+                        const isProcessing = toggling === app.key
+                        const Icon = app.icon
+
+                        return (
+                            <div key={app.key} className="bg-white rounded-[32px] border border-slate-100 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:shadow-md transition-all group">
+                                <div className="flex items-start gap-6">
+                                    <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center shrink-0 transition-colors ${enabled ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100'}`}>
+                                        <Icon className="w-7 h-7" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">{app.name}</h3>
+                                            <div className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${enabled ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>
+                                                {enabled ? 'Active' : 'Missing'}
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-slate-500 font-semibold leading-relaxed max-w-md">{app.description}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center self-end sm:self-center">
+                                    {isOwner ? (
+                                        <button
+                                            onClick={() => handleToggle(app.key, enabled)}
+                                            disabled={isProcessing}
+                                            className={`
+                                                px-6 py-3 rounded-2xl font-black text-sm transition-all flex items-center gap-2
+                                                ${enabled
+                                                    ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100'
+                                                }
+                                                ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}
+                                            `}
+                                        >
+                                            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : (enabled ? 'Disable App' : 'Enable App')}
+                                        </button>
+                                    ) : (
+                                        <div className="text-xs font-bold text-slate-400 italic flex items-center gap-1">
+                                            <Shield className="w-3 h-3" /> Management Restricted
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+
+                <div className="mt-12 pt-12 border-t border-slate-100 text-center">
+                    <p className="text-sm text-slate-400 font-bold mb-4 uppercase tracking-[0.2em]">Want to add a custom module?</p>
+                    <button className="text-indigo-600 font-black text-sm hover:underline">Contact Flogent Enterprise Support</button>
+                </div>
             </div>
         </div>
     )

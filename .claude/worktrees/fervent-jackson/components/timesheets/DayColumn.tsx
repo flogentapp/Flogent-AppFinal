@@ -1,7 +1,7 @@
 'use client'
 
 import { Database } from '@/lib/types/database'
-import { formatDate } from '@/lib/utils/dateHelpers'
+import { formatDisplayDate, formatDate } from '@/lib/utils/dateHelpers'
 import { TimeEntryCard } from './TimeEntryCard'
 import { Plus } from 'lucide-react'
 
@@ -13,11 +13,14 @@ export function DayColumn({
     onAddEntry,
 }: {
     date: Date
-    entries: any[]
+    entries: TimeEntry[]
     onAddEntry: (date: Date) => void
 }) {
-    const totalHours = entries.reduce((acc, entry) => acc + entry.hours, 0)
-    const totalDisplay = `${totalHours.toFixed(2).replace(/\.00$/, '')}h`
+    const totalMinutes = entries.reduce((acc, entry) => acc + entry.hours * 60 + entry.minutes, 0)
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    const totalDisplay = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
 
     const isToday = formatDate(new Date()) === formatDate(date)
 
@@ -30,8 +33,8 @@ export function DayColumn({
                 <div className={`text-lg font-bold mt-0.5 ${isToday ? 'text-indigo-900' : 'text-gray-900'}`}>
                     {date.getDate()}
                 </div>
-                <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold mt-2 ${totalHours > 0 ? (isToday ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-700') : 'text-gray-400'}`}>
-                    {totalHours > 0 ? totalDisplay : '0h'}
+                <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold mt-2 ${totalMinutes > 0 ? (isToday ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-700') : 'text-gray-400'}`}>
+                    {totalMinutes > 0 ? totalDisplay : '0h'}
                 </div>
             </div>
             <div className="flex-1 p-3 bg-white/50 space-y-3 overflow-y-auto custom-scrollbar">

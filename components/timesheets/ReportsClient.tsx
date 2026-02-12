@@ -196,58 +196,109 @@ export function ReportsClient({ initialData }: { initialData: any[] }) {
         </div>
       </div>
 
-      {/* DATA TABLE */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-100">
-          <thead className="bg-gray-50 text-xs uppercase font-bold text-gray-500">
-            <tr>
-              <th className="px-6 py-3 text-left">Date</th>
-              <th className="px-6 py-3 text-left">User</th>
-              <th className="px-6 py-3 text-left">Department</th>
-              <th className="px-6 py-3 text-left">Project</th>
-              <th className="px-6 py-3 text-left">Description</th>
-              <th className="px-6 py-3 text-right">Hours</th>
-              <th className="px-6 py-3 text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm font-medium">
-            {filteredData.length === 0 ? (
+      {/* DATA VISUALIZATION */}
+      <div className="space-y-4">
+        {/* MOBILE CARDS */}
+        <div className="grid grid-cols-1 gap-4 lg:hidden">
+          {filteredData.length === 0 ? (
+            <div className="bg-white p-12 text-center text-gray-400 rounded-2xl border border-dashed border-gray-200">
+              No entries found matching these filters.
+            </div>
+          ) : (
+            filteredData.map((item) => (
+              <div key={item.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mb-1">
+                      {format(parseISO(item.date), 'MMM d, yyyy')}
+                    </div>
+                    <div className="font-black text-slate-900 text-sm">
+                      {item.profiles?.first_name} {item.profiles?.last_name}
+                    </div>
+                  </div>
+                  <StatusBadge status={item.status} />
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-y border-slate-50">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Project</span>
+                    <span className="text-sm font-bold text-indigo-600">{item.projects?.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block mb-0.5">Hours</span>
+                    <span className="text-lg font-black text-slate-900 leading-none">{item.hours}h</span>
+                  </div>
+                </div>
+
+                {item.description && (
+                  <div className="bg-slate-50 p-3 rounded-xl">
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed italic">"{item.description}"</p>
+                  </div>
+                )}
+
+                <div>
+                  <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-[10px] uppercase font-black tracking-tight border border-slate-200">
+                    {item.projects?.departments?.name || 'Unassigned'}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* DESKTOP TABLE */}
+        <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-widest">
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                  No entries found matching these filters.
-                </td>
+                <th className="px-6 py-4 text-left">Date</th>
+                <th className="px-6 py-4 text-left">User</th>
+                <th className="px-6 py-4 text-left">Department</th>
+                <th className="px-6 py-4 text-left">Project</th>
+                <th className="px-6 py-4 text-left">Description</th>
+                <th className="px-6 py-3 text-right">Hours</th>
+                <th className="px-6 py-3 text-right">Status</th>
               </tr>
-            ) : (
-              filteredData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
-                    {format(parseISO(item.date), 'MMM d, yyyy')}
-                  </td>
-                  <td className="px-6 py-4 text-gray-900">
-                    {item.profiles?.first_name} {item.profiles?.last_name}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] uppercase font-bold tracking-tight">
-                      {item.projects?.departments?.name || 'Unassigned'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-indigo-600 font-bold">
-                    {item.projects?.name}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 max-w-xs truncate" title={item.description}>
-                    {item.description}
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono font-black text-gray-900">
-                    {item.hours}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <StatusBadge status={item.status} />
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-sm">
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-medium italic">
+                    No entries found matching these filters.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredData.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-5 text-gray-500 whitespace-nowrap font-medium">
+                      {format(parseISO(item.date), 'MMM d, yyyy')}
+                    </td>
+                    <td className="px-6 py-5 text-gray-900 font-bold whitespace-nowrap">
+                      {item.profiles?.first_name} {item.profiles?.last_name}
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-[10px] uppercase font-black tracking-tight border border-slate-200">
+                        {item.projects?.departments?.name || 'Unassigned'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-indigo-600 font-bold">
+                      {item.projects?.name}
+                    </td>
+                    <td className="px-6 py-5 text-gray-500 max-w-xs truncate font-medium" title={item.description}>
+                      {item.description}
+                    </td>
+                    <td className="px-6 py-5 text-right font-black text-slate-900">
+                      {item.hours}h
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <StatusBadge status={item.status} />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

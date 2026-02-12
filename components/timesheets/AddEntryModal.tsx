@@ -1,18 +1,25 @@
-﻿'use client'
-
-import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { logTime } from '@/lib/actions/timesheets'
+import { logTime, updateTimeEntry } from '@/lib/actions/timesheets'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-export function AddEntryModal({ isOpen, onClose, projects }: any) {
+export function AddEntryModal({ isOpen, onClose, projects, entryToEdit }: any) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isAdditional, setIsAdditional] = useState(false)
   const router = useRouter()
+
+  // Sync state with entryToEdit when it changes or modal opens
+  useEffect(() => {
+    if (isOpen && entryToEdit) {
+      setIsAdditional(!!entryToEdit.is_additional_work)
+    } else if (isOpen && !entryToEdit) {
+      setIsAdditional(false)
+    }
+  }, [isOpen, entryToEdit])
 
   async function handleSubmit(formData: FormData) {
     setLoading(true); setError('')
@@ -20,7 +27,10 @@ export function AddEntryModal({ isOpen, onClose, projects }: any) {
     // Manual checkbox handling because 'isAdditional' state drives the UI
     if (isAdditional) formData.set('is_additional_work', 'on')
 
-    const res = await logTime(formData)
+    const res = entryToEdit
+      ? await updateTimeEntry(entryToEdit.id, formData)
+      : await logTime(formData)
+
     setLoading(false)
 
     if (res?.error) {
@@ -35,7 +45,7 @@ export function AddEntryModal({ isOpen, onClose, projects }: any) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Log Time</DialogTitle>
+          <DialogTitle>{entryToEdit ? 'Edit Time Entry' : 'Log Time'}</DialogTitle>
         </DialogHeader>
 
         {error && <div className='bg-red-50 text-red-600 p-3 text-sm rounded mb-4 border border-red-100'>{error}</div>}
@@ -44,17 +54,34 @@ export function AddEntryModal({ isOpen, onClose, projects }: any) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Date</label>
-              <Input type='date' name='date' required defaultValue={new Date().toISOString().split('T')[0]} />
+              <Input
+                type='date'
+                name='date'
+                required
+                defaultValue={entryToEdit?.date || entryToEdit?.entry_date || new Date().toISOString().split('T')[0]}
+              />
             </div>
             <div>
               <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Hours</label>
-              <Input type='number' name='hours' step='any' required placeholder='e.g. 4.12' />
+              <Input
+                type='number'
+                name='hours'
+                step='any'
+                required
+                placeholder='e.g. 4.12'
+                defaultValue={entryToEdit?.hours || ''}
+              />
             </div>
           </div>
 
           <div>
             <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Project</label>
-            <select name='project_id' className='w-full border rounded-md p-2 bg-white text-sm h-10' required>
+            <select
+              name='project_id'
+              className='w-full border rounded-md p-2 bg-white text-sm h-10'
+              required
+              defaultValue={entryToEdit?.project_id || ''}
+            >
               <option value=''>Select Project...</option>
               {projects.map((p: any) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -64,7 +91,13 @@ export function AddEntryModal({ isOpen, onClose, projects }: any) {
 
           <div>
             <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Description</label>
-            <textarea name='description' className='w-full border rounded-md p-2 text-sm' rows={2} placeholder='Standard work description...'></textarea>
+            <textarea
+              name='description'
+              className='w-full border rounded-md p-2 text-sm'
+              rows={2}
+              placeholder='Standard work description...'
+              defaultValue={entryToEdit?.description || ''}
+            ></textarea>
           </div>
 
           {/* ADDITIONAL WORK TOGGLE */}
@@ -95,13 +128,14 @@ export function AddEntryModal({ isOpen, onClose, projects }: any) {
                   className='w-full border border-amber-300 rounded-md p-2 text-sm bg-amber-50/50 focus:ring-amber-500 focus:border-amber-500 placeholder:text-amber-400 text-amber-900'
                   rows={2}
                   placeholder='e.g. Client requested changes to the original scope...'
+                  defaultValue={entryToEdit?.additional_work_description || ''}
                 ></textarea>
               </div>
             )}
           </div>
 
           <Button type='submit' className='w-full' disabled={loading}>
-            {loading ? <Loader2 className='animate-spin w-4 h-4' /> : 'Save Entry'}
+            {loading ? <Loader2 className='animate-spin w-4 h-4' /> : (entryToEdit ? 'Update Entry' : 'Save Entry')}
           </Button>
         </form>
       </DialogContent>

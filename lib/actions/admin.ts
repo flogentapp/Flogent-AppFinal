@@ -400,6 +400,104 @@ export async function assignUserToCompany(userId: string, companyId: string) {
   return { success: true }
 }
 
+// 14. Create Company
+export async function createCompany(formData: FormData) {
+  const name = formData.get('name') as string
+  const code = formData.get('code') as string
+
+  if (!name) return { error: 'Name is required' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile?.tenant_id) return { error: 'No tenant found' }
+
+  const { data: company, error: insErr } = await supabase.from('companies').insert({
+    tenant_id: profile.tenant_id,
+    name,
+    code: code || null,
+    status: 'active',
+    created_by: user.id
+  }).select().single()
+
+  if (insErr) return { error: insErr.message }
+
+  if (company) {
+    // Assign CEO Role (Isolation Fix)
+    await supabase.from('user_role_assignments').insert({
+      user_id: user.id,
+      tenant_id: profile.tenant_id,
+      role: 'CEO',
+      scope_type: 'company',
+      scope_id: company.id,
+      created_by: user.id
+    })
+  }
+
+  revalidatePath('/admin/companies')
+  return { success: true }
+}
+
+// 12. Update Company
+export async function updateCompany(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const id = formData.get('id') as string
+  const name = formData.get('name') as string
+  const code = formData.get('code') as string
+  const status = formData.get('status') as string
+
+  if (!id || !name) return { error: 'Missing required fields' }
+
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return { error: 'Unauthorized to update companies' }
+  }
+
+  const { error } = await supabase
+    .from('companies')
+    .update({ name, code: code || null, status })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/companies')
+  return { success: true }
+}
+
+// 13. Update Department
+export async function updateDepartment(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const id = formData.get('id') as string
+  const name = formData.get('name') as string
+  const description = formData.get('description') as string
+  const companyId = formData.get('company_id') as string
+
+  if (!id || !name) return { error: 'Missing required fields' }
+
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return { error: 'Unauthorized to update departments' }
+  }
+
+  const { error } = await supabase
+    .from('departments')
+    .update({ name, description: description || null, company_id: companyId })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/companies')
+  return { success: true }
+}
+
 // 11. Remove User from Company
 export async function removeUserFromCompany(userId: string, companyId: string) {
   const supabase = await createClient()

@@ -1,14 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-
-export type UserPermissions = {
-    isOwner: boolean
-    isCEO: boolean
-    isDepartmentHead: boolean
-    isProjectLeader: boolean
-    canManageAny: boolean
-    managedDepartmentIds: string[]
-    managedProjectIds: string[]
-}
+import type { UserPermissions } from '@/types/permissions'
 
 export async function getUserPermissions(): Promise<UserPermissions> {
     const supabase = await createClient()
