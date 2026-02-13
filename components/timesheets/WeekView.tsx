@@ -7,14 +7,11 @@ import { Button } from '@/components/ui/Button'
 import { AddEntryModal } from './AddEntryModal'
 import { DayDetailModal } from './DayDetailModal'
 import { cn } from '@/lib/utils'
-import { submitWeek } from '@/lib/actions/timesheets'
 import { toast } from 'sonner'
 
 export function WeekView({ entries, projects, user, companies }: any) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-
   // NEW STATE FOR DETAILS
   const [viewDate, setViewDate] = useState<Date | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
@@ -41,23 +38,6 @@ export function WeekView({ entries, projects, user, companies }: any) {
   const openDayDetails = (date: Date) => {
     setViewDate(date)
     setIsViewOpen(true)
-  }
-
-  const handleSubmitWeek = async () => {
-    if (weekTotal === 0) {
-      toast.error('No hours to submit for this week.')
-      return
-    }
-
-    setSubmitting(true)
-    const res = await submitWeek(format(startDate, 'yyyy-MM-dd'))
-    setSubmitting(false)
-
-    if (res?.error) {
-      toast.error(res.error)
-    } else {
-      toast.success('Week submitted for approval!')
-    }
   }
 
   return (
@@ -87,15 +67,6 @@ export function WeekView({ entries, projects, user, companies }: any) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            variant="outline"
-            onClick={handleSubmitWeek}
-            disabled={submitting || weekTotal === 0}
-            className="flex-1 sm:flex-none border-indigo-100 text-indigo-600 hover:bg-indigo-50 text-xs sm:text-sm"
-          >
-            {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-            Submit
-          </Button>
           <Button onClick={() => setIsAddOpen(true)} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 text-xs sm:text-sm">
             <Plus className="w-4 h-4 mr-2" />
             Log Time

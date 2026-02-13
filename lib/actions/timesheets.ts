@@ -39,7 +39,7 @@ export async function logTime(formData: FormData) {
     description: description,
     is_additional_work: isAdditionalWork,
     additional_work_description: isAdditionalWork ? additionalWorkDesc : null,
-    status: 'draft',
+    status: 'submitted',
     created_by: user.id
   })
 
@@ -149,7 +149,6 @@ export async function getReportData() {
     .from('time_entries')
     .select('*, profiles(first_name, last_name), projects(*, departments(name))')
     .eq('tenant_id', profile.tenant_id)
-    .neq('status', 'rejected')
 
   if (!permissions.isOwner && !permissions.isCEO) {
     const allowedProjectIds = new Set<string>()
@@ -184,24 +183,6 @@ export async function getReportData() {
 }
 
 
-export async function submitWeek(dateISO: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
-
-  // Use the RPC function we added in migrations
-  const { error } = await supabase.rpc('submit_week', {
-    p_user_id: user.id,
-    p_date: dateISO
-  })
-
-  if (error) return { error: error.message }
-
-  revalidatePath('/timesheets/my')
-  revalidatePath('/timesheets/approvals')
-  revalidatePath('/timesheets/reports')
-  return { success: true }
-}
 
 export async function approveTimeEntry(id: string) {
   return updateTimesheetStatus(id, 'approved')
@@ -217,17 +198,9 @@ export async function deleteTimeEntry(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Verify status before deleting
-  const { data: entry } = await supabase
-    .from('time_entries')
-    .select('status')
-    .eq('id', id)
-    .single()
+  const { data: entry } = await supabase.from('time_entries').select('id').eq('id', id).single()
 
   if (!entry) return { error: 'Entry not found' }
-  if (entry.status !== 'draft' && entry.status !== 'rejected') {
-    return { error: 'Cannot delete a submitted or approved entry.' }
-  }
 
   const { error } = await supabase.from('time_entries').delete().eq('id', id)
 
@@ -260,17 +233,9 @@ export async function updateTimeEntry(id: string, formData: FormData) {
     return { error: 'Please explain why this is Additional Work.' }
   }
 
-  // Verify status before updating
-  const { data: entry } = await supabase
-    .from('time_entries')
-    .select('status')
-    .eq('id', id)
-    .single()
+  const { data: entry } = await supabase.from('time_entries').select('id').eq('id', id).single()
 
   if (!entry) return { error: 'Entry not found' }
-  if (entry.status !== 'draft' && entry.status !== 'rejected') {
-    return { error: 'Cannot edit a submitted or approved entry.' }
-  }
 
   const { error } = await supabase.from('time_entries').update({
     project_id: projectId,
@@ -279,7 +244,7 @@ export async function updateTimeEntry(id: string, formData: FormData) {
     description: description,
     is_additional_work: isAdditionalWork,
     additional_work_description: isAdditionalWork ? additionalWorkDesc : null,
-    status: 'draft', // Reset to draft if it was rejected
+    status: 'submitted', // Always submitted so it's visible in approvals
     updated_at: new Date().toISOString(),
     updated_by: user.id
   }).eq('id', id)

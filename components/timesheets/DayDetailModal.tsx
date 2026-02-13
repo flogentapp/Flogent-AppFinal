@@ -79,7 +79,7 @@ export function DayDetailModal({
               </div>
             ) : (
               entries.map((entry) => {
-                const isEditable = entry.status === 'draft' || entry.status === 'rejected'
+                const isEditable = true
 
                 return (
                   <div key={entry.id} className="p-4 border rounded-xl bg-gray-50/50 space-y-3 hover:bg-gray-50 transition-colors relative group">
