@@ -4,15 +4,47 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { logSupabaseCall } from '../supabase/logger'
 
+const ADMIN_ROLES = ['TenantOwner', 'CEO', 'Admin']
+
+async function requireAdminRole(supabase: any, userId: string, tenantId: string) {
+    const { data: roles } = await supabase
+        .from('user_role_assignments')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('tenant_id', tenantId)
+        .in('scope_type', ['system', 'tenant'])
+
+    const hasAdminRole = roles?.some((r: any) => ADMIN_ROLES.includes(r.role))
+    if (!hasAdminRole) {
+        return { error: 'Unauthorized: Admin access required' }
+    }
+    return null
+}
+
 // 1. Assign User to Project
 export async function assignUserToProject(
   userId: string,
   projectId: string,
   role: 'User' | 'ProjectLeader'
 ) {
+  if (!userId || !projectId) return { error: 'User ID and Project ID are required' }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+
+  // Get tenant context
+  const { data: profile } = await supabase
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single()
+
+  if (!profile?.tenant_id) return { error: 'No tenant found' }
+
+  // Require admin role
+  const authError = await requireAdminRole(supabase, user.id, profile.tenant_id)
+  if (authError) return authError
 
   // Check if membership exists
   const { data: existing, error: existingErr } = await supabase
@@ -41,7 +73,6 @@ export async function assignUserToProject(
     if (insErr) return { error: insErr.message }
   }
 
-  // Force refresh
   revalidatePath('/', 'layout')
   return { success: true }
 }
@@ -50,7 +81,7 @@ export async function assignUserToProject(
 export async function updateApprovalPolicy(rules: any, enabled: boolean) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) return { error: 'Not authenticated' }
 
     // Get Tenant
@@ -61,6 +92,10 @@ export async function updateApprovalPolicy(rules: any, enabled: boolean) {
         .single()
 
     if (!profile?.tenant_id) return { error: 'No tenant found' }
+
+    // Require admin role
+    const authError = await requireAdminRole(supabase, user.id, profile.tenant_id)
+    if (authError) return authError
 
     // Upsert Policy
     const { error } = await supabase
@@ -83,6 +118,8 @@ export async function updateApprovalPolicy(rules: any, enabled: boolean) {
 
 // 3. Assign Department Head
 export async function assignDepartmentHead(departmentId: string, userId: string) {
+    if (!departmentId || !userId) return { error: 'Department ID and User ID are required' }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -97,8 +134,26 @@ export async function assignDepartmentHead(departmentId: string, userId: string)
 
     if (!profile?.tenant_id) return { error: 'No tenant found' }
 
-    // 2. Assign the Role
-    // We insert a new role assignment. 
+    // Require admin role
+    const authError = await requireAdminRole(supabase, user.id, profile.tenant_id)
+    if (authError) return authError
+
+    // 2. Upsert the Role (prevent duplicates)
+    const { data: existingRole } = await supabase
+        .from('user_role_assignments')
+        .select('id')
+        .eq('tenant_id', profile.tenant_id)
+        .eq('user_id', userId)
+        .eq('role', 'DepartmentHead')
+        .eq('scope_type', 'department')
+        .eq('scope_id', departmentId)
+        .maybeSingle()
+
+    if (existingRole) {
+        // Already assigned
+        return { success: true }
+    }
+
     const { error } = await supabase
         .from('user_role_assignments')
         .insert({

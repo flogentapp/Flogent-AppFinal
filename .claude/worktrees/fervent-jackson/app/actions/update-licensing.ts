@@ -1,20 +1,33 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+
+const ADMIN_ROLES = ['TenantOwner', 'CEO', 'Admin']
 
 export async function updateLicensingSettings(formData: FormData) {
   const supabase = await createClient()
 
-  // 1. Check if current user is Owner/Admin
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // 2. Parse the form data into a JSON object
-  // Example result: { "Admin": true, "Member": false }
+  const tenantId = user.user_metadata?.tenant_id
+  if (!tenantId) return { error: 'No tenant context' }
+
+  // Verify admin role
+  const { data: roles } = await supabase
+      .from('user_role_assignments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('tenant_id', tenantId)
+      .in('scope_type', ['system', 'tenant'])
+
+  const hasAdminRole = roles?.some(r => ADMIN_ROLES.includes(r.role))
+  if (!hasAdminRole) return { error: 'Unauthorized: Admin access required' }
+
+  // Parse the form data into a JSON object
   const settings: Record<string, boolean> = {}
-  
-  // We assume the form sends keys like "role_Admin", "role_Member"
+
   for (const [key, value] of formData.entries()) {
     if (key.startsWith('role_')) {
       const roleName = key.replace('role_', '')
@@ -25,14 +38,11 @@ export async function updateLicensingSettings(formData: FormData) {
   // Always force Owner to be true (safety check)
   settings['Owner'] = true
 
-  // 3. Save to the Tenants table
-  // You might need to fetch the tenant_id first depending on your schema
-  // For now, we update based on the user's linked tenant
+  // Save to the Tenants table using tenant_id
   const { error } = await supabase
     .from('tenants')
     .update({ license_settings: settings })
-    .eq('created_by', user.id) // Assuming the user is the owner
-    // OR if you have a tenant_id on the user: .eq('id', user.user_metadata.tenant_id)
+    .eq('id', tenantId)
 
   if (error) return { error: error.message }
 

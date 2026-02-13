@@ -36,14 +36,14 @@ export default async function ReportsPage({
         .select(`
             hours,
             status,
-            projects!inner ( id, name, department_id ),
+            projects!inner ( id, name, department_id, company_id ),
             profiles!inner ( id, first_name, last_name ),
             tenant_id
         `)
         .eq('tenant_id', tenantId)
 
-    // Apply URL Filters
-    if (params.company) query = query.eq('tenant_id', params.company) // If storing multiple companies under one tenant isn't how you do it, adjust logic. usually tenant_id IS company.
+    // Apply URL Filters (tenant_id is already set above — never overwrite it from URL params)
+    if (params.company) query = query.eq('projects.company_id', params.company)
     if (params.project) query = query.eq('project_id', params.project)
     if (params.user) query = query.eq('user_id', params.user)
     
@@ -60,15 +60,16 @@ export default async function ReportsPage({
     // Group by Project
     const projectStats: Record<string, number> = {}
     entries?.forEach(e => {
-        const name = e.projects?.name || 'Unknown'
+        const project = Array.isArray(e.projects) ? e.projects[0] : e.projects
+        const name = project?.name || 'Unknown'
         projectStats[name] = (projectStats[name] || 0) + Number(e.hours)
     })
 
     // Group by User
     const userStats: Record<string, number> = {}
     entries?.forEach(e => {
-        // @ts-ignore
-        const name = `${e.profiles?.first_name} ${e.profiles?.last_name}`
+        const profile = Array.isArray(e.profiles) ? e.profiles[0] : e.profiles
+        const name = profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown'
         userStats[name] = (userStats[name] || 0) + Number(e.hours)
     })
 

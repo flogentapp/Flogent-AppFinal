@@ -31,12 +31,11 @@ export function AssignDeptHeadModal({ departmentId, departmentName, users, isOpe
         const result = await assignDepartmentHead(departmentId, selectedUserId)
         setLoading(false)
         
-        if (result.success) {
-            onClose()
-            // Reset selection
-            setSelectedUserId('')
-        } else {
+        if ('error' in result) {
             alert('Failed to assign: ' + result.error)
+        } else {
+            onClose()
+            setSelectedUserId('')
         }
     }
 

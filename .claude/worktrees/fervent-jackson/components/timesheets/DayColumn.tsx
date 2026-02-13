@@ -1,11 +1,8 @@
 'use client'
 
-import { Database } from '@/lib/types/database'
-import { formatDisplayDate, formatDate } from '@/lib/utils/dateHelpers'
+import { formatDate } from '@/lib/utils/dateHelpers'
 import { TimeEntryCard } from './TimeEntryCard'
 import { Plus } from 'lucide-react'
-
-type TimeEntry = Database['public']['Tables']['time_entries']['Row']
 
 export function DayColumn({
     date,
@@ -13,7 +10,7 @@ export function DayColumn({
     onAddEntry,
 }: {
     date: Date
-    entries: TimeEntry[]
+    entries: any[]
     onAddEntry: (date: Date) => void
 }) {
     const totalMinutes = entries.reduce((acc, entry) => acc + entry.hours * 60 + entry.minutes, 0)

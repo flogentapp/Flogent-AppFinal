@@ -1,5 +1,5 @@
 import LicensingConfig from '@/components/admin/LicensingConfig'
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function LicensingPage() {
   const supabase = await createClient()
@@ -9,14 +9,19 @@ export default async function LicensingPage() {
     return <div className="p-8">Please sign in to view this page.</div>
   }
 
-  // 1. Fetch the current settings
+  const tenantId = user.user_metadata?.tenant_id
+  if (!tenantId) {
+    return <div className="p-8">No tenant context found.</div>
+  }
+
+  // Fetch the current settings using tenant_id
   const { data: tenant } = await supabase
     .from('tenants')
     .select('license_settings')
-    .eq('created_by', user.id)
+    .eq('id', tenantId)
     .single()
 
-  // 2. Default to empty object if no settings found
+  // Default to empty object if no settings found
   const currentSettings = tenant?.license_settings || {}
 
   return (

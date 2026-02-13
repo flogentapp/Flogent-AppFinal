@@ -6,7 +6,7 @@ import { deleteTimeEntry } from '@/lib/actions/timesheets'
 interface TimeEntryCardProps {
     entry: {
         id: string
-        project_name: string
+        project_name?: string
         hours: number
         minutes: number
         description: string

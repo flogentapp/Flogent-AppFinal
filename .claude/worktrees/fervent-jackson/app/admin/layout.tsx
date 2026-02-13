@@ -1,17 +1,42 @@
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import Link from 'next/link'
 import { Building2, Users, FolderOpen, Shield, ShieldCheck, Grid } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 
-// Mock admin check - In real app, check user role
-const isAdmin = true
+const ADMIN_ROLES = ['TenantOwner', 'CEO', 'Admin']
 
-export default function AdminLayout({
+export default async function AdminLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
-    // In a real implementation, we would check permissions here and redirect if not admin/owner.
-    // For Phase 2 Launch, we will assume access to /admin is gated by RLS/Logic or we add a check page.
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        redirect('/login')
+    }
+
+    const tenantId = user.user_metadata?.tenant_id
+
+    if (!tenantId) {
+        redirect('/onboarding')
+    }
+
+    // Check if user has an admin role at the tenant level
+    const { data: roles } = await supabase
+        .from('user_role_assignments')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('tenant_id', tenantId)
+        .in('scope_type', ['system', 'tenant'])
+
+    const hasAdminRole = roles?.some(r => ADMIN_ROLES.includes(r.role))
+
+    if (!hasAdminRole) {
+        redirect('/app')
+    }
 
     return (
         <div className="min-h-screen bg-gray-50/50">

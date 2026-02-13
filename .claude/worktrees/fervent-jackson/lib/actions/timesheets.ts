@@ -7,11 +7,25 @@ import { logSupabaseCall } from '../supabase/logger'
 export async function createTimeEntry(formData: FormData) {
     const projectId = formData.get('project_id') as string
     const date = formData.get('date') as string
-    const hours = parseInt(formData.get('hours') as string)
-    const minutes = parseInt(formData.get('minutes') as string) || 0
+    const rawHours = formData.get('hours') as string
+    const rawMinutes = formData.get('minutes') as string
     const description = formData.get('description') as string
     const isAdditionalWork = formData.get('is_additional_work') === 'true'
     const additionalWorkDescription = formData.get('additional_work_description') as string
+
+    // Input validation
+    if (!projectId) return { error: 'Project is required' }
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: 'Valid date is required (YYYY-MM-DD)' }
+
+    const hours = parseInt(rawHours)
+    const minutes = parseInt(rawMinutes) || 0
+    if (isNaN(hours) || hours < 0) return { error: 'Hours must be a non-negative number' }
+    if (minutes < 0 || minutes > 59) return { error: 'Minutes must be between 0 and 59' }
+    if (hours === 0 && minutes === 0) return { error: 'Time entry must have at least some time' }
+
+    if (isAdditionalWork && !additionalWorkDescription?.trim()) {
+        return { error: 'Additional work description is required when marking as additional work' }
+    }
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -50,17 +64,23 @@ export async function createTimeEntry(formData: FormData) {
         return { error: error.message }
     }
 
-    // CRITICAL FIX: Refresh the entire layout to ensure UI updates instantly
     revalidatePath('/', 'layout')
     return { success: true }
 }
 
 export async function updateTimeEntry(entryId: string, formData: FormData) {
-    const hours = parseInt(formData.get('hours') as string)
-    const minutes = parseInt(formData.get('minutes') as string) || 0
+    if (!entryId) return { error: 'Entry ID is required' }
+
+    const rawHours = formData.get('hours') as string
+    const rawMinutes = formData.get('minutes') as string
     const description = formData.get('description') as string
     const isAdditionalWork = formData.get('is_additional_work') === 'true'
     const additionalWorkDescription = formData.get('additional_work_description') as string
+
+    const hours = parseInt(rawHours)
+    const minutes = parseInt(rawMinutes) || 0
+    if (isNaN(hours) || hours < 0) return { error: 'Hours must be a non-negative number' }
+    if (minutes < 0 || minutes > 59) return { error: 'Minutes must be between 0 and 59' }
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -68,6 +88,17 @@ export async function updateTimeEntry(entryId: string, formData: FormData) {
     if (!user) {
         return { error: 'Not authenticated' }
     }
+
+    // Verify ownership: user can only update their own draft entries
+    const { data: entry } = await supabase
+        .from('time_entries')
+        .select('user_id, status')
+        .eq('id', entryId)
+        .single()
+
+    if (!entry) return { error: 'Time entry not found' }
+    if (entry.user_id !== user.id) return { error: 'You can only edit your own time entries' }
+    if (entry.status !== 'draft') return { error: 'Only draft entries can be edited' }
 
     const { error } = await supabase
         .from('time_entries')
@@ -92,7 +123,25 @@ export async function updateTimeEntry(entryId: string, formData: FormData) {
 }
 
 export async function deleteTimeEntry(entryId: string) {
+    if (!entryId) return { error: 'Entry ID is required' }
+
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return { error: 'Not authenticated' }
+    }
+
+    // Verify ownership: user can only delete their own draft entries
+    const { data: entry } = await supabase
+        .from('time_entries')
+        .select('user_id, status')
+        .eq('id', entryId)
+        .single()
+
+    if (!entry) return { error: 'Time entry not found' }
+    if (entry.user_id !== user.id) return { error: 'You can only delete your own time entries' }
+    if (entry.status !== 'draft') return { error: 'Only draft entries can be deleted' }
 
     const { error } = await supabase
         .from('time_entries')
@@ -110,7 +159,25 @@ export async function deleteTimeEntry(entryId: string) {
 }
 
 export async function submitTimeEntry(entryId: string) {
+    if (!entryId) return { error: 'Entry ID is required' }
+
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return { error: 'Not authenticated' }
+    }
+
+    // Verify ownership
+    const { data: entry } = await supabase
+        .from('time_entries')
+        .select('user_id, status')
+        .eq('id', entryId)
+        .single()
+
+    if (!entry) return { error: 'Time entry not found' }
+    if (entry.user_id !== user.id) return { error: 'You can only submit your own time entries' }
+    if (entry.status !== 'draft') return { error: 'Only draft entries can be submitted' }
 
     const { error } = await supabase.rpc('submit_time_entry', {
         p_entry_id: entryId
@@ -125,6 +192,8 @@ export async function submitTimeEntry(entryId: string) {
 }
 
 export async function approveTimeEntry(entryId: string) {
+    if (!entryId) return { error: 'Entry ID is required' }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -146,6 +215,9 @@ export async function approveTimeEntry(entryId: string) {
 }
 
 export async function rejectTimeEntry(entryId: string, reason: string) {
+    if (!entryId) return { error: 'Entry ID is required' }
+    if (!reason?.trim()) return { error: 'Rejection reason is required' }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -165,4 +237,13 @@ export async function rejectTimeEntry(entryId: string, reason: string) {
 
     revalidatePath('/', 'layout')
     return { success: true }
+}
+
+// Void-returning wrappers for use as form actions in client components
+export async function approveTimeEntryAction(entryId: string): Promise<void> {
+    await approveTimeEntry(entryId)
+}
+
+export async function rejectTimeEntryAction(entryId: string, reason: string): Promise<void> {
+    await rejectTimeEntry(entryId, reason)
 }

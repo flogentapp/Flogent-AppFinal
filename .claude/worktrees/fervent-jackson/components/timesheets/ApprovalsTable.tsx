@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { CheckCircle2, XCircle } from 'lucide-react'
-import { approveTimeEntry, rejectTimeEntry } from '@/lib/actions/timesheets'
-import { AddEntryModal } from './AddEntryModal' // Reusing the modal for "View Details"
+import { approveTimeEntryAction, rejectTimeEntryAction } from '@/lib/actions/timesheets'
 
 export function ApprovalsTable({ entries, projects, companies }: any) {
     const [selectedEntry, setSelectedEntry] = useState<any>(null)
@@ -23,12 +22,10 @@ export function ApprovalsTable({ entries, projects, companies }: any) {
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
                     {entries.map((entry: any) => (
-                        <tr 
-                            key={entry.id} 
-                            // Clicking the row opens the View/Edit modal
+                        <tr
+                            key={entry.id}
                             className="hover:bg-indigo-50/30 transition-colors cursor-pointer"
                             onClick={(e) => {
-                                // Prevent modal from opening if they clicked the Approve/Reject buttons
                                 if ((e.target as HTMLElement).closest('button')) return;
                                 setSelectedEntry(entry)
                             }}
@@ -62,12 +59,12 @@ export function ApprovalsTable({ entries, projects, companies }: any) {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div className="flex items-center justify-end gap-2">
-                                    <form action={rejectTimeEntry.bind(null, entry.id, 'Standard rejection')}>
+                                    <form action={rejectTimeEntryAction.bind(null, entry.id, 'Standard rejection')}>
                                         <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Reject">
                                             <XCircle className="w-5 h-5" />
                                         </button>
                                     </form>
-                                    <form action={approveTimeEntry.bind(null, entry.id)}>
+                                    <form action={approveTimeEntryAction.bind(null, entry.id)}>
                                         <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-transparent hover:border-green-100" title="Approve">
                                             <CheckCircle2 className="w-5 h-5" />
                                         </button>
@@ -78,16 +75,6 @@ export function ApprovalsTable({ entries, projects, companies }: any) {
                     ))}
                 </tbody>
             </table>
-
-            {/* View Details Modal */}
-            <AddEntryModal
-                isOpen={!!selectedEntry}
-                onClose={() => setSelectedEntry(null)}
-                entryToEdit={selectedEntry} // Passing this makes it viewable/editable
-                projects={projects}
-                companies={companies}
-                date={null}
-            />
         </>
     )
 }

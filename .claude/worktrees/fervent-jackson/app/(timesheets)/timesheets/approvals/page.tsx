@@ -35,10 +35,10 @@ export default async function ApprovalsPage() {
         pendingEntries = data || []
     }
 
-    // 3. Fetch Context Data (Required for the 'View Details' modal to work)
-    // We rely on RLS to only show projects/companies the user is allowed to see.
-    const { data: projects } = await supabase.from('projects').select('*').order('name')
-    const { data: companies } = await supabase.from('companies').select('id, name').order('name')
+    // 3. Fetch Context Data scoped to user's tenant
+    const tenantId = user.user_metadata?.tenant_id
+    const { data: projects } = await supabase.from('projects').select('*').eq('tenant_id', tenantId).order('name')
+    const { data: companies } = await supabase.from('companies').select('id, name').eq('tenant_id', tenantId).order('name')
 
     return (
         <div className="space-y-6">
