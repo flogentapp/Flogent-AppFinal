@@ -114,7 +114,7 @@ export function WeekView({ entries, projects, user, companies }: any) {
                 {/* Day Header */}
                 <div className="relative">
                   <button
-                    onClick={() => openDayDetails(day)}
+                    onClick={() => handleAddTime(day)}
                     className={cn(
                       "w-full p-3 rounded-xl text-center border transition-all hover:shadow-md group/header",
                       isToday ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-gray-200 hover:border-indigo-300"
@@ -126,18 +126,8 @@ export function WeekView({ entries, projects, user, companies }: any) {
                     <div className="text-lg sm:text-xl font-bold">{format(day, 'd')}</div>
 
                     <div className={cn("mt-2 text-[10px] sm:text-xs flex items-center justify-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity", isToday ? "text-white" : "text-indigo-600")}>
-                      <Eye className="w-3 h-3" /> View
+                      <Plus className="w-3 h-3" /> Log Time
                     </div>
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleAddTime(day); }}
-                    title="Log Time for this day"
-                    className={cn(
-                      "absolute -top-1 -right-1 p-1.5 rounded-lg shadow-md opacity-0 group-hover/day:opacity-100 transition-all hover:scale-110",
-                      isToday ? "bg-white text-indigo-600" : "bg-indigo-600 text-white"
-                    )}
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[3px]" />
                   </button>
                 </div>
 
@@ -200,14 +190,11 @@ export function WeekView({ entries, projects, user, companies }: any) {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-300 group/empty">
-                      <span className="text-sm font-medium mb-3">-</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleAddTime(day); }}
-                        className="p-3 rounded-full bg-gray-100 text-gray-400 opacity-0 group-hover/day:opacity-100 transition-all hover:bg-indigo-600 hover:text-white hover:scale-110 shadow-sm"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
+                    <div className="h-full flex flex-col items-center justify-center text-gray-300">
+                      <span className="text-sm font-medium mb-3 opacity-50">-</span>
+                      <div className="text-[10px] text-gray-400 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                        View Details
+                      </div>
                     </div>
                   )}
                 </div>
