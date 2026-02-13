@@ -51,27 +51,14 @@ export function AddEntryModal({ isOpen, onClose, projects, entryToEdit, initialD
         {error && <div className='bg-red-50 text-red-600 p-3 text-sm rounded mb-4 border border-red-100'>{error}</div>}
 
         <form action={handleSubmit} className='space-y-4'>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Date</label>
-              <Input
-                type='date'
-                name='date'
-                required
-                defaultValue={entryToEdit?.date || entryToEdit?.entry_date || initialDate || new Date().toISOString().split('T')[0]}
-              />
-            </div>
-            <div>
-              <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Hours</label>
-              <Input
-                type='number'
-                name='hours'
-                step='any'
-                required
-                placeholder='e.g. 4.12'
-                defaultValue={entryToEdit?.hours || ''}
-              />
-            </div>
+          <div>
+            <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Date</label>
+            <Input
+              type='date'
+              name='date'
+              required
+              defaultValue={entryToEdit?.date || entryToEdit?.entry_date || initialDate || new Date().toISOString().split('T')[0]}
+            />
           </div>
 
           <div>
@@ -87,6 +74,18 @@ export function AddEntryModal({ isOpen, onClose, projects, entryToEdit, initialD
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Hours</label>
+            <Input
+              type='number'
+              name='hours'
+              step='any'
+              required
+              placeholder='e.g. 4.12'
+              defaultValue={entryToEdit?.hours || ''}
+            />
           </div>
 
           <div>
