@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import { logout } from '@/lib/actions/auth'
 import { switchCompany } from '@/lib/actions/user'
 
-import { UserPermissions } from '@/lib/actions/permissions'
+import type { UserPermissions } from '@/types/permissions'
 
 type Company = { id: string; name: string }
 

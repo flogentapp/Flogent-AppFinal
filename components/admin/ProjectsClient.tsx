@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Grid, UserPlus } from 'lucide-react'
 import { EditProjectSheet } from './EditProjectSheet'
 import { AssignProjectUserModal } from './AssignProjectLeaderModal'
-import { UserPermissions } from '@/lib/actions/permissions'
+import type { UserPermissions } from '@/types/permissions'
 
 interface ProjectsClientProps {
     projects: any[]
