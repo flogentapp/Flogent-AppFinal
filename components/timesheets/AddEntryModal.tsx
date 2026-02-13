@@ -6,7 +6,7 @@ import { logTime, updateTimeEntry } from '@/lib/actions/timesheets'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-export function AddEntryModal({ isOpen, onClose, projects, entryToEdit }: any) {
+export function AddEntryModal({ isOpen, onClose, projects, entryToEdit, initialDate }: any) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isAdditional, setIsAdditional] = useState(false)
@@ -58,7 +58,7 @@ export function AddEntryModal({ isOpen, onClose, projects, entryToEdit }: any) {
                 type='date'
                 name='date'
                 required
-                defaultValue={entryToEdit?.date || entryToEdit?.entry_date || new Date().toISOString().split('T')[0]}
+                defaultValue={entryToEdit?.date || entryToEdit?.entry_date || initialDate || new Date().toISOString().split('T')[0]}
               />
             </div>
             <div>

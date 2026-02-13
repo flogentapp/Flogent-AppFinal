@@ -2,16 +2,21 @@
 
 import { useState } from 'react'
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus, Eye, Send, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Eye, Pencil, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { AddEntryModal } from './AddEntryModal'
 import { DayDetailModal } from './DayDetailModal'
 import { cn } from '@/lib/utils'
+import { deleteTimeEntry } from '@/lib/actions/timesheets'
 import { toast } from 'sonner'
 
 export function WeekView({ entries, projects, user, companies }: any) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingEntry, setEditingEntry] = useState<any>(null)
+
   // NEW STATE FOR DETAILS
   const [viewDate, setViewDate] = useState<Date | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
@@ -22,6 +27,28 @@ export function WeekView({ entries, projects, user, companies }: any) {
   // Helper to get entries for a specific day
   const getDayEntries = (date: Date) => {
     return entries.filter((e: any) => isSameDay(new Date(e.date), date))
+  }
+
+  const handleAddTime = (date: Date) => {
+    setSelectedDate(format(date, 'yyyy-MM-dd'))
+    setEditingEntry(null)
+    setIsAddOpen(true)
+  }
+
+  const handleEditEntry = (entry: any) => {
+    setEditingEntry(entry)
+    setSelectedDate(null)
+    setIsAddOpen(true)
+  }
+
+  const handleDeleteEntry = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm('Are you sure you want to delete this entry?')) return
+    setDeletingId(id)
+    const res = await deleteTimeEntry(id)
+    setDeletingId(null)
+    if (res?.error) toast.error(res.error)
+    else toast.success('Entry deleted')
   }
 
   const weekTotal = entries.filter((e: any) => {
@@ -83,56 +110,104 @@ export function WeekView({ entries, projects, user, companies }: any) {
             const isToday = isSameDay(day, new Date())
 
             return (
-              <div key={day.toISOString()} className="flex flex-col gap-3">
+              <div key={day.toISOString()} className="flex flex-col gap-3 group/day">
                 {/* Day Header */}
-                <button
-                  onClick={() => openDayDetails(day)}
-                  className={cn(
-                    "p-3 rounded-xl text-center border transition-all hover:shadow-md group",
-                    isToday ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-gray-200 hover:border-indigo-300"
-                  )}
-                >
-                  <div className={cn("text-[10px] sm:text-xs font-medium uppercase mb-1", isToday ? "text-indigo-100" : "text-gray-500")}>
-                    {format(day, 'EEE')}
-                  </div>
-                  <div className="text-lg sm:text-xl font-bold">{format(day, 'd')}</div>
+                <div className="relative">
+                  <button
+                    onClick={() => openDayDetails(day)}
+                    className={cn(
+                      "w-full p-3 rounded-xl text-center border transition-all hover:shadow-md group/header",
+                      isToday ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-gray-200 hover:border-indigo-300"
+                    )}
+                  >
+                    <div className={cn("text-[10px] sm:text-xs font-medium uppercase mb-1", isToday ? "text-indigo-100" : "text-gray-500")}>
+                      {format(day, 'EEE')}
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold">{format(day, 'd')}</div>
 
-                  <div className={cn("mt-2 text-[10px] sm:text-xs flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity", isToday ? "text-white" : "text-indigo-600")}>
-                    <Eye className="w-3 h-3" /> View
-                  </div>
-                </button>
+                    <div className={cn("mt-2 text-[10px] sm:text-xs flex items-center justify-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity", isToday ? "text-white" : "text-indigo-600")}>
+                      <Eye className="w-3 h-3" /> View
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleAddTime(day); }}
+                    title="Log Time for this day"
+                    className={cn(
+                      "absolute -top-1 -right-1 p-1.5 rounded-lg shadow-md opacity-0 group-hover/day:opacity-100 transition-all hover:scale-110",
+                      isToday ? "bg-white text-indigo-600" : "bg-indigo-600 text-white"
+                    )}
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[3px]" />
+                  </button>
+                </div>
 
                 {/* Day Card Summary */}
                 <div
                   className={cn(
-                    "flex-1 bg-white border border-gray-100 rounded-xl p-3 min-h-[120px] transition-all cursor-pointer hover:border-indigo-300",
+                    "flex-1 bg-white border border-gray-100 rounded-xl p-3 min-h-[140px] transition-all cursor-pointer hover:border-indigo-300 hover:shadow-md group/card",
                     total > 0 ? "bg-white" : "bg-gray-50/50 border-dashed"
                   )}
                   onClick={() => openDayDetails(day)}
                 >
                   {total > 0 ? (
-                    <div className="space-y-2">
+                    <div className="h-full flex flex-col">
                       <div className="text-center py-2 border-b border-gray-50">
-                        <span className="text-xl sm:text-2xl font-bold text-indigo-600">{total}</span>
-                        <span className="text-[10px] sm:text-xs text-gray-400 ml-1">hrs</span>
+                        <span className="text-xl sm:text-2xl font-black text-indigo-600 leading-none">{total.toFixed(2).replace(/\.00$/, '')}</span>
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-400 ml-1 tracking-wider uppercase">h</span>
                       </div>
-                      <div className="space-y-1 overflow-hidden">
+                      <div className="flex-1 py-3 space-y-1.5 overflow-hidden">
                         {dayEntries.slice(0, 3).map((e: any) => (
-                          <div key={e.id} className="text-[10px] sm:text-xs truncate text-gray-500 flex items-center gap-1">
+                          <div key={e.id} className="text-[10px] sm:text-xs truncate text-gray-500 flex items-center gap-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0"></div>
-                            {e.project?.name || 'Unknown'}
+                            <span className="font-medium">{e.project?.name || 'Unknown'}</span>
                           </div>
                         ))}
                         {dayEntries.length > 3 && (
-                          <div className="text-[10px] sm:text-xs text-center text-gray-400 italic">
-                            +{dayEntries.length - 3} more...
+                          <div className="text-[10px] text-center text-gray-400 font-bold mt-1">
+                            +{dayEntries.length - 3} MORE
                           </div>
+                        )}
+                      </div>
+
+                      {/* QUICK ACTIONS ROW */}
+                      <div className="flex items-center justify-around pt-2 border-t border-gray-50 opacity-0 group-hover/card:opacity-100 transition-opacity bg-white/80 backdrop-blur-sm -mx-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openDayDetails(day); }}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {dayEntries.length === 1 && (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEditEntry(dayEntries[0]); }}
+                              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              title="Edit Entry"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteEntry(dayEntries[0].id, e)}
+                              disabled={deletingId === dayEntries[0].id}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              title="Delete Entry"
+                            >
+                              {deletingId === dayEntries[0].id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-gray-300 text-sm">
-                      -
+                    <div className="h-full flex flex-col items-center justify-center text-gray-300 group/empty">
+                      <span className="text-sm font-medium mb-3">-</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleAddTime(day); }}
+                        className="p-3 rounded-full bg-gray-100 text-gray-400 opacity-0 group-hover/day:opacity-100 transition-all hover:bg-indigo-600 hover:text-white hover:scale-110 shadow-sm"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -145,10 +220,16 @@ export function WeekView({ entries, projects, user, companies }: any) {
       {/* Modals */}
       <AddEntryModal
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+        onClose={() => {
+          setIsAddOpen(false)
+          setEditingEntry(null)
+          setSelectedDate(null)
+        }}
         projects={projects}
         companies={companies}
         user={user}
+        entryToEdit={editingEntry}
+        initialDate={selectedDate}
       />
 
       <DayDetailModal
