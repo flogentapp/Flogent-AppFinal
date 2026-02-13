@@ -93,12 +93,6 @@ export function WeekView({ entries, projects, user, companies }: any) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Button onClick={() => setIsAddOpen(true)} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 text-xs sm:text-sm">
-            <Plus className="w-4 h-4 mr-2" />
-            Log Time
-          </Button>
-        </div>
       </div>
 
       {/* Week Grid - Scrollable on mobile */}
