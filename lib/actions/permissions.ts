@@ -10,9 +10,11 @@ export async function getUserPermissions(): Promise<UserPermissions> {
     if (!user) return {
         isOwner: false,
         isCEO: false,
+        isAdmin: false,
         isDepartmentHead: false,
         isProjectLeader: false,
         canManageAny: false,
+        tenantId: null,
         managedCompanyIds: [],
         managedDepartmentIds: [],
         managedProjectIds: [],
@@ -31,9 +33,11 @@ export async function getUserPermissions(): Promise<UserPermissions> {
     if (!profile?.tenant_id) return {
         isOwner: false,
         isCEO: false,
+        isAdmin: false,
         isDepartmentHead: false,
         isProjectLeader: false,
         canManageAny: false,
+        tenantId: null,
         managedCompanyIds: [],
         managedDepartmentIds: [],
         managedProjectIds: [],
@@ -75,9 +79,11 @@ export async function getUserPermissions(): Promise<UserPermissions> {
         return {
             isOwner: true,
             isCEO: true,
+            isAdmin: true,
             isDepartmentHead: true,
             isProjectLeader: true,
             canManageAny: true,
+            tenantId: profile.tenant_id,
             managedCompanyIds: allCompIds,
             managedDepartmentIds: allDeptIds,
             managedProjectIds: allProjIds,
@@ -88,8 +94,9 @@ export async function getUserPermissions(): Promise<UserPermissions> {
     }
 
     // Regular RBAC
-    const managedCompanyIds = roles?.filter(r => r.role === 'CEO' && r.scope_type === 'company').map(r => r.scope_id) || []
-    const isCEO = managedCompanyIds.length > 0
+    const managedCompanyIds = roles?.filter(r => (r.role === 'CEO' || r.role === 'Admin') && r.scope_type === 'company').map(r => r.scope_id) || []
+    const isCEO = roles?.some(r => r.role === 'CEO') || false
+    const isAdmin = roles?.some(r => r.role === 'Admin') || false
     const finalManagedDeptIds = roles?.filter(r => r.role === 'DepartmentHead').map(r => r.scope_id) || []
     const isDepartmentHead = finalManagedDeptIds.length > 0
     const finalManagedProjIds = memberships?.filter(m => m.role === 'ProjectLeader').map(m => m.project_id) || []
@@ -104,9 +111,11 @@ export async function getUserPermissions(): Promise<UserPermissions> {
     return {
         isOwner: false,
         isCEO,
+        isAdmin,
         isDepartmentHead,
         isProjectLeader,
-        canManageAny: isCEO || isDepartmentHead || isProjectLeader,
+        canManageAny: isCEO || isAdmin || isDepartmentHead || isProjectLeader,
+        tenantId: profile.tenant_id,
         managedCompanyIds,
         managedDepartmentIds: finalManagedDeptIds,
         managedProjectIds: finalManagedProjIds,

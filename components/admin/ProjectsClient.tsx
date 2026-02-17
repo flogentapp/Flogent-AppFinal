@@ -14,6 +14,7 @@ interface ProjectsClientProps {
 }
 
 export function ProjectsClient({ projects, users, currentCompanyId, permissions }: ProjectsClientProps) {
+    const [activeModal, setActiveModal] = useState<'edit' | 'assign' | null>(null)
     const [selectedProject, setSelectedProject] = useState<any>(null)
     const [assignUserProject, setAssignUserProject] = useState<any>(null)
 
@@ -72,7 +73,7 @@ export function ProjectsClient({ projects, users, currentCompanyId, permissions 
                                             </button>
                                         )}
                                         <button
-                                            onClick={() => setSelectedProject(project)}
+                                            onClick={() => { setSelectedProject(project); setActiveModal('edit'); }}
                                             className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100"
                                         >
                                             Edit
@@ -128,7 +129,7 @@ export function ProjectsClient({ projects, users, currentCompanyId, permissions 
                                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {canManage && (
                                                     <button
-                                                        onClick={() => setAssignUserProject(project)}
+                                                        onClick={() => { setAssignUserProject(project); setActiveModal('assign'); }}
                                                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl hover:shadow-sm transition-all"
                                                         title="Add Member"
                                                     >
@@ -136,7 +137,7 @@ export function ProjectsClient({ projects, users, currentCompanyId, permissions 
                                                     </button>
                                                 )}
                                                 <button
-                                                    onClick={() => setSelectedProject(project)}
+                                                    onClick={() => { setSelectedProject(project); setActiveModal('edit'); }}
                                                     className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95 transition-all"
                                                 >
                                                     Edit
@@ -153,19 +154,17 @@ export function ProjectsClient({ projects, users, currentCompanyId, permissions 
 
             <EditProjectSheet
                 project={selectedProject}
-                isOpen={!!selectedProject}
-                onClose={() => setSelectedProject(null)}
+                isOpen={activeModal === 'edit'}
+                onClose={() => { setActiveModal(null); setSelectedProject(null); }}
             />
 
-            {assignUserProject && (
-                <AssignProjectUserModal
-                    isOpen={!!assignUserProject}
-                    onClose={() => setAssignUserProject(null)}
-                    projectId={assignUserProject.id}
-                    projectName={assignUserProject.name}
-                    users={users}
-                />
-            )}
+            <AssignProjectUserModal
+                isOpen={activeModal === 'assign'}
+                onClose={() => { setActiveModal(null); setAssignUserProject(null); }}
+                projectId={assignUserProject?.id}
+                projectName={assignUserProject?.name}
+                users={users}
+            />
         </div>
     )
 }

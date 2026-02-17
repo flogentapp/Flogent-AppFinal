@@ -2,18 +2,18 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Plus, UserPlus, Trash2, Loader2, Link } from 'lucide-react'
+import { Plus, UserPlus, Trash2, Loader2, Link, Shield } from 'lucide-react'
 import { AssignUserModal } from '@/components/admin/AssignUserModal'
 import { InviteUserModal } from '@/components/admin/InviteUserModal'
 import { AssignExistingUserModal } from '@/components/admin/AssignExistingUserModal'
+import { UserRoleModal } from '@/components/admin/UserRoleModal'
 import { useRouter } from 'next/navigation'
 import { removeUserFromCompany } from '@/lib/actions/admin'
 import { toast } from 'sonner'
 
-export function UsersClient({ users, projects, memberships, currentCompanyId, companies, allTenantUsers }: any) {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isInviteOpen, setIsInviteOpen] = useState(false)
-  const [isExistingOpen, setIsExistingOpen] = useState(false)
+export function UsersClient({ users, projects, memberships, orgRoles, currentCompanyId, companies, allTenantUsers }: any) {
+  const [activeModal, setActiveModal] = useState<'assign' | 'invite' | 'existing' | 'role' | null>(null)
+  const [roleModalUser, setRoleModalUser] = useState<any>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -31,6 +31,15 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
     }
     return map
   }, [memberships])
+
+  const orgRolesByUser = useMemo(() => {
+    const map: any = {}
+    for (const r of orgRoles || []) {
+      if (!map[r.user_id]) map[r.user_id] = []
+      map[r.user_id].push(r)
+    }
+    return map
+  }, [orgRoles])
 
   const handleRemove = async (userId: string) => {
     if (!confirm('Remove this user from the current company? They will lose access to all projects in this company.')) return
@@ -61,13 +70,13 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
           <p className='text-gray-500 text-sm'>Manage your team and their access to projects in the selected company.</p>
         </div>
         <div className='flex items-center gap-3'>
-          <Button onClick={() => setIsExistingOpen(true)} variant='outline' className='bg-white'>
+          <Button onClick={() => setActiveModal('existing')} variant='outline' className='bg-white'>
             <Link className='w-4 h-4 mr-2' /> Add Existing
           </Button>
-          <Button onClick={() => setIsInviteOpen(true)} variant='outline' className='bg-white'>
+          <Button onClick={() => setActiveModal('invite')} variant='outline' className='bg-white'>
             <UserPlus className='w-4 h-4 mr-2' /> Create User
           </Button>
-          <Button onClick={() => setIsModalOpen(true)} disabled={!projects?.length || !users?.length}>
+          <Button onClick={() => setActiveModal('assign')} disabled={!projects?.length || !users?.length}>
             <Plus className='w-4 h-4 mr-2' /> Assign to Project
           </Button>
         </div>
@@ -78,6 +87,7 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
         <div className="grid grid-cols-1 gap-4 md:hidden">
           {users.map((u: any) => {
             const ms = membershipsByUser[u.id] || []
+            const roles = orgRolesByUser[u.id] || []
             const isDeleting = deletingId === u.id
 
             return (
@@ -103,9 +113,24 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
                   </Button>
                 </div>
 
-                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
-                  <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Contact Email</div>
-                  <div className="text-sm font-bold text-slate-700">{u.email}</div>
+                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 space-y-3">
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Contact Email</div>
+                    <div className="text-sm font-bold text-slate-700">{u.email}</div>
+                  </div>
+
+                  {roles.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Company Roles</div>
+                      <div className="flex flex-wrap gap-2">
+                        {roles.map((r: any) => (
+                          <span key={r.id} className="inline-flex items-center px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest">
+                            <Shield className="w-2.5 h-2.5 mr-1" /> {r.role}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -122,6 +147,14 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
                     <div className='text-xs text-slate-400 font-bold italic px-1'>No active assignments</div>
                   )}
                 </div>
+
+                <Button
+                  variant="outline"
+                  className="w-full rounded-2xl font-black uppercase tracking-widest text-[10px] h-10 border-2 border-slate-100 hover:border-indigo-600 hover:text-indigo-600 transition-all"
+                  onClick={() => { setRoleModalUser(u); setActiveModal('role'); }}
+                >
+                  <Shield className="w-3.5 h-3.5 mr-2" /> Modify Auth Roles
+                </Button>
               </div>
             )
           })}
@@ -141,6 +174,7 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
             <tbody className='divide-y divide-slate-100'>
               {users.map((u: any) => {
                 const ms = membershipsByUser[u.id] || []
+                const roles = orgRolesByUser[u.id] || []
                 return (
                   <tr key={u.id} className='hover:bg-slate-50/50 transition-colors group'>
                     <td className='px-8 py-5'>
@@ -154,7 +188,16 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
                         </div>
                       </div>
                     </td>
-                    <td className='px-8 py-5 text-sm font-semibold text-slate-600'>{u.email}</td>
+                    <td className='px-8 py-5'>
+                      <div className='text-sm font-black text-slate-900'>{u.email}</div>
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {roles.map((r: any) => (
+                          <span key={r.id} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-indigo-600 text-white text-[8px] font-black uppercase tracking-widest">
+                            {r.role}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className='px-8 py-5'>
                       {ms.length > 0 ? (
                         <div className='flex flex-wrap gap-2'>
@@ -167,6 +210,14 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
                       ) : <span className='text-xs text-slate-400 font-bold italic'>No assignments</span>}
                     </td>
                     <td className='px-8 py-5 text-right'>
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        className='text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all'
+                        onClick={() => { setRoleModalUser(u); setActiveModal('role'); }}
+                      >
+                        <Shield className="w-4 h-4" />
+                      </Button>
                       <Button
                         variant='ghost'
                         size='sm'
@@ -185,20 +236,34 @@ export function UsersClient({ users, projects, memberships, currentCompanyId, co
         </div>
       </div>
 
-      <AssignUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} users={users} projects={projects} onAssigned={() => { setIsModalOpen(false); router.refresh() }} />
+      <AssignUserModal
+        isOpen={activeModal === 'assign'}
+        onClose={() => setActiveModal(null)}
+        users={users}
+        projects={projects}
+        onAssigned={() => { setActiveModal(null); router.refresh() }}
+      />
       <InviteUserModal
-        isOpen={isInviteOpen}
-        onClose={() => setIsInviteOpen(false)}
-        onSuccess={() => { setIsInviteOpen(false); router.refresh() }}
+        isOpen={activeModal === 'invite'}
+        onClose={() => setActiveModal(null)}
+        onSuccess={() => { setActiveModal(null); router.refresh() }}
         currentCompanyId={currentCompanyId}
       />
       <AssignExistingUserModal
-        isOpen={isExistingOpen}
-        onClose={() => setIsExistingOpen(false)}
+        isOpen={activeModal === 'existing'}
+        onClose={() => setActiveModal(null)}
         allUsers={allTenantUsers}
         currentUsers={users}
         currentCompanyId={currentCompanyId}
-        onAssigned={() => { setIsExistingOpen(false); router.refresh() }}
+        onAssigned={() => { setActiveModal(null); router.refresh() }}
+      />
+      <UserRoleModal
+        isOpen={activeModal === 'role'}
+        onClose={() => { setActiveModal(null); setRoleModalUser(null); }}
+        user={roleModalUser}
+        roles={roleModalUser ? orgRolesByUser[roleModalUser.id] : []}
+        currentCompanyId={currentCompanyId}
+        onUpdated={() => { router.refresh() }}
       />
     </div>
   )

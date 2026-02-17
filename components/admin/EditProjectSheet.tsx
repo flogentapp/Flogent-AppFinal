@@ -2,6 +2,7 @@
 
 import { SlideOver } from '@/components/ui/SlideOver'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { updateProject, deleteProject } from '@/lib/actions/admin' // Added deleteProject
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
@@ -84,31 +85,28 @@ export function EditProjectSheet({ project, isOpen, onClose }: EditProjectSheetP
             <form id="edit-project-form" action={handleSubmit} className="space-y-6 pt-4">
                 <input type="hidden" name="id" value={project.id} />
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Project Name</label>
-                    <input
-                        name="name"
-                        defaultValue={project.name}
-                        required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
-                    />
-                </div>
+                <Input
+                    label="Project Name"
+                    name="name"
+                    defaultValue={project.name}
+                    required
+                    placeholder="e.g. Website Launch"
+                />
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Project Code</label>
-                    <input
-                        name="code"
-                        defaultValue={project.code}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
-                    />
-                </div>
+                <Input
+                    label="Project Code"
+                    name="code"
+                    defaultValue={project.code}
+                    placeholder="e.g. WEB-01"
+                    className="font-mono uppercase"
+                />
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Status</label>
+                <div className="space-y-1">
+                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-tight mb-1 ml-1">Status</label>
                     <select
                         name="status"
                         defaultValue={project.status}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                        className="block w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium transition-all focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 bg-slate-50 border-transparent appearance-none"
                     >
                         <option value="active">Active</option>
                         <option value="completed">Completed</option>

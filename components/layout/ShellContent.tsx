@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { AppSidebar } from './AppSidebar'
 import { AppHeader } from './AppHeader'
 import type { UserPermissions } from '@/types/permissions'
+import { useUI } from '@/components/providers/UIProvider'
 
 type Company = { id: string; name: string }
 
@@ -35,6 +36,7 @@ export function ShellContent({
     currentProjectId
 }: ShellContentProps) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const { closeAll } = useUI()
 
     return (
         <div className="flex min-h-screen bg-[#FDFDFF]">
@@ -65,7 +67,10 @@ export function ShellContent({
             {/* MAIN CONTENT */}
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
                 <AppHeader
-                    onMenuClick={() => setIsSidebarOpen(true)}
+                    onMenuClick={() => {
+                        closeAll()
+                        setIsSidebarOpen(true)
+                    }}
                     companies={availableCompanies}
                     currentCompanyId={currentCompany.id}
                     departments={departments}

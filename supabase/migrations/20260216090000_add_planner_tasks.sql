@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS public.planner_tasks (
     created_by UUID CONSTRAINT fk_planner_creator REFERENCES public.profiles(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     completion_date TIMESTAMPTZ,
-    marked_done_by_id UUID CONSTRAINT fk_planner_completer REFERENCES public.profiles(id)
+    marked_done_by_id UUID CONSTRAINT fk_planner_completer REFERENCES public.profiles(id),
+    deleted_at TIMESTAMPTZ,
+    deleted_by_id UUID CONSTRAINT fk_planner_deleter REFERENCES public.profiles(id)
 );
 
 -- Enable RLS

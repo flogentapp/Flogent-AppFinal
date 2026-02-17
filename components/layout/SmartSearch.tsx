@@ -19,30 +19,27 @@ import { smartSearch, SearchResult } from '@/lib/actions/search'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { useClickOutside } from '@/lib/hooks/useClickOutside'
+import { useUI } from '@/components/providers/UIProvider'
 
 export function SmartSearch() {
     const [query, setQuery] = useState('')
     const [results, setResults] = useState<SearchResult[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [isOpen, setIsOpen] = useState(false)
+    const { activeDropdown, setActiveDropdown } = useUI()
+    const isOpen = activeDropdown === 'smart-search'
     const dropdownRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
+    useClickOutside(dropdownRef, () => {
+        if (isOpen) setActiveDropdown(null)
+    })
 
     useEffect(() => {
         const timer = setTimeout(async () => {
             if (query.length >= 2) {
                 setIsLoading(true)
-                setIsOpen(true)
+                setActiveDropdown('smart-search')
                 const res = await smartSearch(query)
                 setResults(res)
                 if (res.length === 1 && res[0].label === 'AI Offline') {
@@ -51,7 +48,7 @@ export function SmartSearch() {
                 setIsLoading(false)
             } else {
                 setResults([])
-                setIsOpen(false)
+                setActiveDropdown(null)
             }
         }, 300)
 
@@ -61,7 +58,7 @@ export function SmartSearch() {
     const handleSelect = (href?: string) => {
         if (href) {
             router.push(href)
-            setIsOpen(false)
+            setActiveDropdown(null)
             setQuery('')
         }
     }
@@ -74,7 +71,7 @@ export function SmartSearch() {
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onFocus={() => query.length >= 2 && setIsOpen(true)}
+                    onFocus={() => query.length >= 2 && setActiveDropdown('smart-search')}
                     placeholder="Ask Gemini to find anything..."
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 pl-10 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all"
                 />

@@ -400,6 +400,65 @@ export async function assignUserToCompany(userId: string, companyId: string) {
   return { success: true }
 }
 
+// 15. Global Role Management
+export async function assignUserRole(
+  userId: string,
+  role: 'CEO' | 'Admin' | 'User' | 'DepartmentHead',
+  scopeType: 'company' | 'department',
+  scopeId: string
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return { error: 'Permission denied' }
+  }
+
+  // Get Tenant
+  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile) return { error: 'Profile not found' }
+
+  // Upsert the role
+  const { error } = await supabase
+    .from('user_role_assignments')
+    .upsert({
+      user_id: userId,
+      tenant_id: profile.tenant_id,
+      role,
+      scope_type: scopeType,
+      scope_id: scopeId,
+      created_by: user.id
+    }, { onConflict: 'user_id,role,scope_type,scope_id' })
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
+export async function removeUserRole(roleAssignmentId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const permissions = await getUserPermissions()
+  if (!permissions.isOwner && !permissions.isCEO) {
+    return { error: 'Permission denied' }
+  }
+
+  const { error } = await supabase
+    .from('user_role_assignments')
+    .delete()
+    .eq('id', roleAssignmentId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
 // 14. Create Company
 export async function createCompany(formData: FormData) {
   const name = formData.get('name') as string

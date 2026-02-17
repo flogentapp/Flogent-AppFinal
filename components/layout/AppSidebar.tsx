@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -14,12 +14,15 @@ import {
     Users,
     Package,
     ChevronDown,
-    Grid
+    Grid,
+    ClipboardCheck
 } from 'lucide-react'
 import { logout } from '@/lib/actions/auth'
 import { switchCompany } from '@/lib/actions/user'
 import type { UserPermissions } from '@/types/permissions'
 import { cn } from '@/lib/utils'
+import { useClickOutside } from '@/lib/hooks/useClickOutside'
+import { useUI } from '@/components/providers/UIProvider'
 
 type Company = { id: string; name: string }
 
@@ -42,7 +45,14 @@ export function AppSidebar({
     permissions,
     onClose
 }: SidebarProps) {
-    const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false)
+    const { activeDropdown, setActiveDropdown } = useUI()
+    const isCompanyMenuOpen = activeDropdown === 'sidebar-company'
+    const companyMenuRef = useRef<HTMLDivElement>(null)
+
+    useClickOutside(companyMenuRef, () => {
+        if (isCompanyMenuOpen) setActiveDropdown(null)
+    })
+
     const pathname = usePathname()
 
     const isActive = (path: string) => {
@@ -56,7 +66,7 @@ export function AppSidebar({
     const isCEO = permissions?.isCEO || false
 
     // If Owner, we Force Enable everything
-    const activeApps = isOwner ? ['timesheets', 'task_planner'] : (enabledApps || [])
+    const activeApps = isOwner ? ['timesheets', 'task_planner', 'daily_diary'] : (enabledApps || [])
 
     const NavItem = ({ href, icon: Icon, label, active = false }: any) => (
         <Link
@@ -92,9 +102,9 @@ export function AppSidebar({
                     )}
                 </div>
 
-                <div className="relative">
+                <div className="relative" ref={companyMenuRef}>
                     <button
-                        onClick={() => setIsCompanyMenuOpen(!isCompanyMenuOpen)}
+                        onClick={() => setActiveDropdown(isCompanyMenuOpen ? null : 'sidebar-company')}
                         className="w-full flex items-center gap-3 px-3 py-3 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-slate-100 transition-all group"
                     >
                         <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100">
@@ -117,7 +127,7 @@ export function AppSidebar({
                                         key={c.id}
                                         onClick={async () => {
                                             await switchCompany(c.id)
-                                            setIsCompanyMenuOpen(false)
+                                            setActiveDropdown(null)
                                             window.location.reload()
                                         }}
                                         className={cn(
@@ -177,6 +187,10 @@ export function AppSidebar({
 
                     {activeApps.includes('task_planner') && (
                         <NavItem href="/planner" icon={Package} label="Planner" active={isActive('/planner')} />
+                    )}
+
+                    {activeApps.includes('daily_diary') && (
+                        <NavItem href="/diary" icon={ClipboardCheck} label="Daily Diary" active={isActive('/diary')} />
                     )}
                 </div>
 

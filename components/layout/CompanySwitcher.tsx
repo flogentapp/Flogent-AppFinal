@@ -1,8 +1,8 @@
-'use client'
-
-import { useState } from 'react'
+import { useRef } from 'react'
 import { ChevronDown, Building2, Check } from 'lucide-react'
 import { switchContext } from '@/lib/actions/context'
+import { useClickOutside } from '@/lib/hooks/useClickOutside'
+import { useUI } from '@/components/providers/UIProvider'
 
 interface CompanySwitcherProps {
     companies: any[]
@@ -13,14 +13,20 @@ export function CompanySwitcher({
     companies,
     currentCompanyId,
 }: CompanySwitcherProps) {
-    const [isOpen, setIsOpen] = useState(false)
+    const { activeDropdown, setActiveDropdown } = useUI()
+    const isOpen = activeDropdown === 'header-company'
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useClickOutside(containerRef, () => {
+        if (isOpen) setActiveDropdown(null)
+    })
 
     const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0]
 
     return (
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => setActiveDropdown(isOpen ? null : 'header-company')}
                 className="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100 transition-all group"
             >
                 <div className="flex items-center gap-2">
@@ -46,11 +52,11 @@ export function CompanySwitcher({
                                 key={c.id}
                                 onClick={() => {
                                     switchContext('company', c.id)
-                                    setIsOpen(false)
+                                    setActiveDropdown(null)
                                 }}
                                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all ${c.id === currentCompanyId
-                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
-                                        : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
                                     }`}
                             >
                                 <span className="truncate">{c.name}</span>

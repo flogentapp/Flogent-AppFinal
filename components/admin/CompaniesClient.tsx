@@ -10,8 +10,10 @@ import {
     ArrowLeft,
     Save,
     Trash2,
-    Settings
+    Settings,
+    Loader2
 } from 'lucide-react'
+import { Input } from '@/components/ui/Input'
 import {
     updateCompany,
     createCompany,
@@ -141,10 +143,10 @@ export function CompaniesClient({ companies, departments, projects, users }: Org
                     <div className="bg-slate-50 p-6 rounded-[32px] border border-dashed border-slate-200 flex flex-col items-center justify-center text-center">
                         <Building2 className="w-10 h-10 text-slate-300 mb-4" />
                         <h3 className="text-sm font-black text-slate-600 mb-4">Add New Organization</h3>
-                        <form action={async (formData) => { await handleAction(createCompany, formData, 'Company created successfully') }} className="w-full space-y-3">
-                            <input name="name" required placeholder="Company Name" className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" />
-                            <button className="w-full bg-indigo-600 text-white rounded-xl py-3 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-                                <Plus className="w-4 h-4" /> Create Company
+                        <form action={async (formData) => { await handleAction(createCompany, formData, 'Company created successfully') }} className="w-full space-y-4">
+                            <Input name="name" required placeholder="Organization Name" className="bg-white" />
+                            <button className="w-full bg-indigo-600 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-100">
+                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create Company
                             </button>
                         </form>
                     </div>
@@ -179,16 +181,10 @@ export function CompaniesClient({ companies, departments, projects, users }: Org
                             </h3>
                             <form action={async (formData) => { await handleAction(updateCompany, formData, 'Settings updated') }} className="space-y-4">
                                 <input type="hidden" name="id" value={selectedCompany.id || ''} />
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Formal Name</label>
-                                    <input name="name" defaultValue={selectedCompany.name || ''} className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">System Code</label>
-                                    <input name="code" defaultValue={selectedCompany.code || ''} className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none uppercase font-mono" />
-                                </div>
-                                <button disabled={isSubmitting} className="w-full bg-indigo-600 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50">
-                                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                                <Input label="Formal Name" name="name" defaultValue={selectedCompany.name || ''} />
+                                <Input label="System Code" name="code" defaultValue={selectedCompany.code || ''} className="uppercase font-mono" />
+                                <button disabled={isSubmitting} className="w-full bg-indigo-600 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100 mt-2">
+                                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save Changes'}
                                 </button>
                             </form>
                         </div>
@@ -223,9 +219,11 @@ export function CompaniesClient({ companies, departments, projects, users }: Org
                                     <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-3">Add Department</h4>
                                     <form action={async (formData) => { await handleAction(createDepartment, formData, 'Department created') }} className="flex gap-2">
                                         <input type="hidden" name="company_id" value={selectedCompany.id || ''} />
-                                        <input name="name" placeholder="Name" required className="flex-1 bg-white border border-indigo-100 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500/20 outline-none" />
-                                        <button className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition-colors">
-                                            <Plus className="w-4 h-4" />
+                                        <div className="flex-1">
+                                            <Input name="name" placeholder="Unit Name" required className="bg-white border text-xs" />
+                                        </div>
+                                        <button className="bg-indigo-600 text-white h-[44px] w-[44px] rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100 flex-shrink-0">
+                                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                                         </button>
                                     </form>
                                 </div>
@@ -262,12 +260,9 @@ export function CompaniesClient({ companies, departments, projects, users }: Org
                             <form action={async (formData) => { await handleAction(updateDepartment, formData, 'Unit updated') }} className="space-y-4">
                                 <input type="hidden" name="id" value={selectedDepartment.id || ''} />
                                 <input type="hidden" name="company_id" value={selectedCompany?.id || ''} />
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Department Name</label>
-                                    <input name="name" defaultValue={selectedDepartment.name || ''} className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" />
-                                </div>
-                                <button disabled={isSubmitting} className="w-full bg-indigo-600 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50">
-                                    {isSubmitting ? 'Saving...' : 'Save Unit'}
+                                <Input label="Department Name" name="name" defaultValue={selectedDepartment.name || ''} />
+                                <button disabled={isSubmitting} className="w-full bg-indigo-600 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100 mt-2">
+                                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save Unit'}
                                 </button>
                             </form>
                         </div>
@@ -303,17 +298,17 @@ export function CompaniesClient({ companies, departments, projects, users }: Org
 
                                 <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded-[28px] mt-8">
                                     <h4 className="text-sm font-black text-slate-900 mb-6 uppercase tracking-widest">New Initiative</h4>
-                                    <form action={async (formData) => { await handleAction(createProject, formData, 'Project created') }} className="flex flex-col sm:flex-row gap-4">
+                                    <form action={async (formData) => { await handleAction(createProject, formData, 'Project created') }} className="flex flex-col sm:flex-row gap-4 items-end">
                                         <input type="hidden" name="company_id" value={selectedCompany?.id || ''} />
                                         <input type="hidden" name="department_id" value={selectedDepartment.id || ''} />
-                                        <div className="flex-1">
-                                            <input name="name" placeholder="Project Name" required className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" />
+                                        <div className="flex-1 w-full">
+                                            <Input name="name" label="Initiative Name" placeholder="e.g. Q1 Infrastructure" required className="bg-white" />
                                         </div>
                                         <div className="w-full sm:w-32">
-                                            <input name="code" placeholder="Code" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none uppercase font-mono" />
+                                            <Input name="code" label="Code" placeholder="CODE" className="bg-white uppercase font-mono" />
                                         </div>
-                                        <button className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-                                            <Plus className="w-4 h-4" /> Create
+                                        <button className="bg-indigo-600 text-white h-[52px] px-8 rounded-[20px] text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 flex-shrink-0">
+                                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create
                                         </button>
                                     </form>
                                 </div>

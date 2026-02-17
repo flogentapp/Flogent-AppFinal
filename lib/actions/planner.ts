@@ -29,8 +29,8 @@ export async function getPlannerTasks() {
             *, 
             assigned_to:profiles!fk_planner_assignee(first_name, last_name, email), 
             project:projects(*),
-            marked_done_by:profiles!planner_tasks_marked_done_by_id_fkey(first_name, last_name),
-            deleted_by:profiles!fk_planner_deleter(first_name, last_name)
+            marked_done_by:profiles!marked_done_by_id(first_name, last_name),
+            deleted_by:profiles!deleted_by_id(first_name, last_name)
         `)
         .eq('tenant_id', profile.tenant_id)
 

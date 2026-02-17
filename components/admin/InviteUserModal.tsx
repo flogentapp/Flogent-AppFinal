@@ -2,6 +2,7 @@
 
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { inviteUser } from '@/lib/actions/users'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
@@ -48,18 +49,29 @@ export function InviteUserModal({ isOpen, onClose, onSuccess, currentCompanyId }
             <form action={handleSubmit} className='space-y-4 pt-2'>
                 {currentCompanyId && <input type="hidden" name="companyId" value={currentCompanyId} />}
                 <div className='grid grid-cols-2 gap-3'>
-                    <input name='firstName' required placeholder='First Name' className='border p-2 rounded w-full' />
-                    <input name='lastName' required placeholder='Last Name' className='border p-2 rounded w-full' />
+                    <Input name='firstName' required label='First Name' placeholder='e.g. John' />
+                    <Input name='lastName' required label='Last Name' placeholder='e.g. Doe' />
                 </div>
-                <input type='email' name='email' required placeholder='Email Address' className='border p-2 rounded w-full' />
-                <div className='p-3 bg-yellow-50 rounded border border-yellow-200'>
-                    <label className='block text-xs font-bold text-yellow-800 mb-1'>TEMPORARY PASSWORD</label>
-                    <input type='text' name='password' required minLength={6} placeholder='Type password here...' className='border p-2 rounded w-full bg-white' />
-                    <p className='text-xs text-gray-500 mt-1'>The user will receive this password via email.</p>
+                <Input type='email' name='email' required label='Email Address' placeholder='john@example.com' />
+                <div className='p-4 bg-amber-50 rounded-2xl border border-amber-100'>
+                    <Input
+                        type='password'
+                        name='password'
+                        required
+                        minLength={6}
+                        label='Setup Password'
+                        placeholder='Min 6 characters'
+                        className="bg-white"
+                    />
+                    <p className='text-[10px] text-amber-600 font-bold uppercase tracking-wider mt-2 ml-1 flex items-center gap-1'>
+                        <Lock className="w-3 h-3" /> User will receive this in their welcome email
+                    </p>
                 </div>
-                <div className='flex justify-end gap-2'>
-                    <Button type='button' variant='outline' onClick={onClose}>Cancel</Button>
-                    <Button type='submit' disabled={pending}>{pending ? 'Creating...' : 'Create & Send'}</Button>
+                <div className='flex justify-end gap-3 pt-2'>
+                    <Button type='button' variant='ghost' onClick={onClose}>Cancel</Button>
+                    <Button type='submit' disabled={pending} className="px-8 shadow-lg shadow-indigo-100">
+                        {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Account'}
+                    </Button>
                 </div>
             </form>
         </Modal>

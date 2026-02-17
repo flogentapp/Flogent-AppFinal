@@ -100,6 +100,13 @@ export default async function UsersPage() {
     }
   }
 
+  // 4. Fetch organizational roles for these users
+  const { data: orgRoles } = await supabase
+    .from('user_role_assignments')
+    .select('id, user_id, role, scope_id, scope_type')
+    .eq('scope_id', currentCompanyId)
+    .eq('scope_type', 'company')
+
   // Load memberships for those projects
   const projectIds = projects.map(p => p.id)
   let memberships: any[] = []
@@ -132,6 +139,7 @@ export default async function UsersPage() {
       users={users || []}
       projects={projects || []}
       memberships={memberships || []}
+      orgRoles={orgRoles || []}
       currentCompanyId={currentCompanyId}
       companies={companies}
       allTenantUsers={allTenantUsers || []}

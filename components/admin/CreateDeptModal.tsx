@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { createDepartment } from '@/lib/actions/admin' // Action we just added
+import { Textarea } from '@/components/ui/Textarea'
 import { Loader2 } from 'lucide-react'
 
 interface CreateDeptModalProps {
@@ -53,14 +54,12 @@ export function CreateDeptModal({ isOpen, onClose, departments, companies }: Cre
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
-                    <textarea
-                        name="description"
-                        className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm h-20"
-                        placeholder="Optional description"
-                    />
-                </div>
+                <Textarea
+                    name="description"
+                    label="Description"
+                    className="h-20"
+                    placeholder="Optional description"
+                />
 
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Parent Department</label>

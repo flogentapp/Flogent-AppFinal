@@ -2,6 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { logTime, updateTimeEntry } from '@/lib/actions/timesheets'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -51,21 +52,19 @@ export function AddEntryModal({ isOpen, onClose, projects, entryToEdit, initialD
         {error && <div className='bg-red-50 text-red-600 p-3 text-sm rounded mb-4 border border-red-100'>{error}</div>}
 
         <form action={handleSubmit} className='space-y-4'>
-          <div>
-            <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Date</label>
-            <Input
-              type='date'
-              name='date'
-              required
-              defaultValue={entryToEdit?.date || entryToEdit?.entry_date || initialDate || new Date().toISOString().split('T')[0]}
-            />
-          </div>
+          <Input
+            label="Date"
+            type='date'
+            name='date'
+            required
+            defaultValue={entryToEdit?.date || entryToEdit?.entry_date || initialDate || new Date().toISOString().split('T')[0]}
+          />
 
           <div>
-            <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Project</label>
+            <label className='block text-sm font-bold text-gray-700 uppercase tracking-tight mb-1 ml-1'>Project</label>
             <select
               name='project_id'
-              className='w-full border rounded-md p-2 bg-white text-sm h-10'
+              className='w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium transition-all focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 bg-slate-50 border-transparent appearance-none'
               required
               defaultValue={entryToEdit?.project_id || ''}
             >
@@ -76,65 +75,57 @@ export function AddEntryModal({ isOpen, onClose, projects, entryToEdit, initialD
             </select>
           </div>
 
-          <div>
-            <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Hours</label>
-            <Input
-              type='number'
-              name='hours'
-              step='any'
-              required
-              placeholder='e.g. 4.12'
-              defaultValue={entryToEdit?.hours || ''}
-            />
-          </div>
+          <Input
+            label="Hours"
+            type='number'
+            name='hours'
+            step='any'
+            required
+            placeholder='e.g. 4.12'
+            defaultValue={entryToEdit?.hours || ''}
+          />
 
-          <div>
-            <label className='block text-xs font-bold text-gray-500 uppercase mb-1'>Description</label>
-            <textarea
-              name='description'
-              className='w-full border rounded-md p-2 text-sm'
-              rows={2}
-              placeholder='Standard work description...'
-              defaultValue={entryToEdit?.description || ''}
-            ></textarea>
-          </div>
+          <Textarea
+            label="Description"
+            name="description"
+            rows={2}
+            placeholder="Standard work description..."
+            defaultValue={entryToEdit?.description || ''}
+          />
 
           {/* ADDITIONAL WORK TOGGLE */}
           <div className='space-y-3 pt-2 border-t border-gray-100'>
             <div
-              className={'flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ' + (isAdditional ? 'bg-amber-50 border-amber-300 shadow-sm' : 'bg-white border-gray-200 hover:border-gray-300')}
+              className={'flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ' + (isAdditional ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-slate-50 border-transparent hover:border-slate-200')}
               onClick={() => setIsAdditional(!isAdditional)}
             >
-              <div className={'w-5 h-5 rounded border flex items-center justify-center transition-colors ' + (isAdditional ? 'bg-amber-500 border-amber-600 text-white' : 'bg-white border-gray-400')}>
-                {isAdditional && <span className="text-xs font-bold">✓</span>}
+              <div className={'w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ' + (isAdditional ? 'bg-amber-600 border-amber-600 text-white' : 'bg-white border-slate-300')}>
+                {isAdditional && <span className="text-xs font-black">✓</span>}
               </div>
               <div className="flex-1">
-                <span className={'block text-sm font-bold ' + (isAdditional ? 'text-amber-800' : 'text-gray-700')}>Additional Work</span>
-                <span className="text-xs text-gray-400">Mark this as out-of-scope / extra work</span>
+                <span className={'block text-sm font-black uppercase tracking-tight ' + (isAdditional ? 'text-amber-900' : 'text-slate-600')}>Additional Work</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Mark as out-of-scope / extra</span>
               </div>
             </div>
 
             {/* REASON FIELD - Shows only when toggle is ON */}
             {isAdditional && (
-              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                <label className='block text-xs font-bold text-amber-700 uppercase mb-1 ml-1 flex items-center gap-1'>
-                  <AlertCircle className="w-3 h-3" />
-                  Reason for Additional Work
-                </label>
-                <textarea
+              <div className="animate-in fade-in slide-in-from-top-1 duration-200 pt-1">
+                <Textarea
                   name='additional_work_reason'
                   required={isAdditional}
-                  className='w-full border border-amber-300 rounded-md p-2 text-sm bg-amber-50/50 focus:ring-amber-500 focus:border-amber-500 placeholder:text-amber-400 text-amber-900'
+                  label="Reason for Additional Work"
+                  className='border-amber-200 bg-white placeholder:text-amber-200 text-amber-900'
                   rows={2}
                   placeholder='e.g. Client requested changes to the original scope...'
                   defaultValue={entryToEdit?.additional_work_description || ''}
-                ></textarea>
+                />
               </div>
             )}
           </div>
 
-          <Button type='submit' className='w-full' disabled={loading}>
-            {loading ? <Loader2 className='animate-spin w-4 h-4' /> : (entryToEdit ? 'Update Entry' : 'Save Entry')}
+          <Button type='submit' className='w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-100 mt-4' disabled={loading}>
+            {loading ? <Loader2 className='animate-spin w-5 h-5' /> : (entryToEdit ? 'Update Entry' : 'Post Time Entry')}
           </Button>
         </form>
       </DialogContent>
