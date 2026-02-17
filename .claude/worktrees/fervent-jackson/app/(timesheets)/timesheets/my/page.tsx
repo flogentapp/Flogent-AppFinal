@@ -25,36 +25,23 @@ export default async function MyTimesheetsPage({
     const { data: profile } = await supabase.from('profiles').select('current_company_id, tenant_id').eq('id', user.id).single()
     const currentCompanyId = profile?.current_company_id
 
-    // 2. Fetch Companies
-    let companies: any[] = []
-    if (profile?.tenant_id) {
-        const { data } = await supabase
-            .from('companies')
-            .select('id, name')
-            .eq('tenant_id', profile.tenant_id)
-            .eq('status', 'active')
-            .order('name')
-        companies = data || []
-    }
-
-    // 3. Fetch Projects
+    // 2. Fetch user's assigned projects via memberships
     const { data: membershipData } = await supabase
         .from('project_memberships')
         .select(`
-            project_id, 
-            projects ( 
-                id, 
-                name, 
-                code, 
+            project_id,
+            projects (
+                id,
+                name,
+                code,
                 status,
-                company_id 
+                company_id
             )
         `)
         .eq('user_id', user.id)
-    
-    // Map projects with SAFETY CHECK
+
     const projects = membershipData
-        ?.filter((m: any) => m.projects) // <--- FIX: Filter out null projects first
+        ?.filter((m: any) => m.projects)
         .map((m: any) => ({
             ...m.projects,
             company_id: m.projects.company_id
@@ -62,7 +49,50 @@ export default async function MyTimesheetsPage({
         .filter((p: any) => p && p.status === 'active')
         .sort((a: any, b: any) => a.name.localeCompare(b.name)) || []
 
-    // 4. Fetch Entries
+    // 3. Derive companies from user's project memberships (only companies with assigned projects)
+    const userCompanyIds = [...new Set(projects.map((p: any) => p.company_id).filter(Boolean))]
+    let companies: any[] = []
+    if (userCompanyIds.length > 0) {
+        const { data } = await supabase
+            .from('companies')
+            .select('id, name')
+            .in('id', userCompanyIds)
+            .eq('status', 'active')
+            .order('name')
+        companies = data || []
+    }
+
+    // 4. Fetch departments for user's projects (for disambiguation via project_departments junction)
+    const projectIds = projects.map((p: any) => p.id)
+    let departments: any[] = []
+    let projectDeptMap: Record<string, string> = {}
+    if (projectIds.length > 0) {
+        const { data: projDepts } = await supabase
+            .from('project_departments')
+            .select('project_id, department_id')
+            .in('project_id', projectIds)
+
+        if (projDepts && projDepts.length > 0) {
+            // Build project → department mapping
+            for (const pd of projDepts) {
+                projectDeptMap[pd.project_id] = pd.department_id
+            }
+            const deptIds = [...new Set(projDepts.map(pd => pd.department_id))]
+            const { data } = await supabase
+                .from('departments')
+                .select('id, name')
+                .in('id', deptIds)
+            departments = data || []
+        }
+    }
+
+    // Enrich projects with department_id from junction table
+    const enrichedProjects = projects.map((p: any) => ({
+        ...p,
+        department_id: projectDeptMap[p.id] || null
+    }))
+
+    // 5. Fetch Entries
     let query = supabase
         .from('time_entries')
         .select(`*, projects ( name, code )`)
@@ -86,12 +116,13 @@ export default async function MyTimesheetsPage({
             {mode === 'week' ? (
                 <div className="w-full overflow-x-auto rounded-xl border border-gray-100 shadow-sm bg-white">
                     <div className="min-w-[800px]"> 
-                        <WeekView 
-                            startDate={new Date(from)} 
-                            entries={entries} 
-                            projects={projects} 
+                        <WeekView
+                            startDate={new Date(from)}
+                            entries={entries}
+                            projects={enrichedProjects}
                             companies={companies}
-                            defaultCompanyId={currentCompanyId} 
+                            departments={departments}
+                            defaultCompanyId={currentCompanyId}
                         />
                     </div>
                 </div>

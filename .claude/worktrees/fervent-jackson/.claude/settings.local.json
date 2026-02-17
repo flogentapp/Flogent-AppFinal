@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(git show:*)",
+      "Bash(xargs -I {} git show main:supabase/migrations/{})",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }

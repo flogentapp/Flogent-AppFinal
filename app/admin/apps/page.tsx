@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toggleAppSubscription } from '@/lib/actions/admin'
-import { Toaster, toast } from 'sonner'
+import { toast } from 'sonner'
 import {
     Shield,
     Package,
     Lock,
     Clock,
-    FileText,
-    CheckSquare,
     LayoutDashboard,
     Grid,
     Loader2
@@ -88,10 +86,8 @@ export default function AppSubscriptionsPage() {
 
     const allApps = [
         { key: 'timesheets', name: 'Timesheets', icon: Clock, description: 'Track time, submit for approval, and generate reports.' },
-        { key: 'documents', name: 'Documents', icon: FileText, description: 'Manage project documents with version control.' },
-        { key: 'tasks', name: 'Tasks', icon: CheckSquare, description: 'Create and track project tasks and workflows.' },
-        { key: 'diary', name: 'Daily Diary', icon: LayoutDashboard, description: 'Site diaries and daily progress logs.' },
-        { key: 'planner', name: 'Planner', icon: Package, description: 'Resource planning and scheduling.' }
+        { key: 'task_planner', name: 'Task Planner', icon: Package, description: 'Resource planning, task management, and documentation.' },
+        { key: 'diary', name: 'Daily Diary', icon: LayoutDashboard, description: 'Site diaries and daily progress logs.' }
     ]
 
     return (

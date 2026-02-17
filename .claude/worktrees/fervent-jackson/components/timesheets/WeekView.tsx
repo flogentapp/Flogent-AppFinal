@@ -9,11 +9,12 @@ interface WeekViewProps {
     startDate: Date
     entries: any[]
     projects: any[]
-    companies: any[] // <--- Ensure this type is defined
+    companies: any[]
+    departments?: any[]
     defaultCompanyId?: string
 }
 
-export function WeekView({ startDate, entries, projects, companies, defaultCompanyId }: WeekViewProps) {
+export function WeekView({ startDate, entries, projects, companies, departments = [], defaultCompanyId }: WeekViewProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
@@ -91,13 +92,14 @@ export function WeekView({ startDate, entries, projects, companies, defaultCompa
             )}
 
             {/* Modal - PASS THE DATA HERE */}
-            <AddEntryModal 
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)} 
-                date={selectedDate} 
+            <AddEntryModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                date={selectedDate}
                 projects={projects}
-                companies={companies}        // <--- CRITICAL FIX
-                defaultCompanyId={defaultCompanyId} 
+                companies={companies}
+                departments={departments}
+                defaultCompanyId={defaultCompanyId}
             />
         </div>
     )

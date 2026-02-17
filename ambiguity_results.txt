@@ -1,0 +1,108 @@
+
+--- Checking Assignee ---
+Error: Could not embed because more than one relationship was found for 'planner_tasks' and 'profiles'
+Hint: Try changing 'profiles' to one of the following: 'profiles!fk_planner_assignee', 'profiles!fk_planner_creator', 'profiles!fk_planner_deleter', 'profiles!planner_tasks_assigned_to_id_fkey', 'profiles!planner_tasks_created_by_fkey', 'profiles!planner_tasks_marked_done_by_id_fkey'. Find the desired relationship in the 'details' key.
+Details: [
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_assignee using planner_tasks(assigned_to_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_creator using planner_tasks(created_by) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_deleter using planner_tasks(deleted_by_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_assigned_to_id_fkey using planner_tasks(assigned_to_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_created_by_fkey using planner_tasks(created_by) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_marked_done_by_id_fkey using planner_tasks(marked_done_by_id) and profiles(id)"
+  }
+]
+
+--- Checking Completer ---
+Error: Could not embed because more than one relationship was found for 'planner_tasks' and 'profiles'
+Hint: Try changing 'profiles' to one of the following: 'profiles!fk_planner_assignee', 'profiles!fk_planner_creator', 'profiles!fk_planner_deleter', 'profiles!planner_tasks_assigned_to_id_fkey', 'profiles!planner_tasks_created_by_fkey', 'profiles!planner_tasks_marked_done_by_id_fkey'. Find the desired relationship in the 'details' key.
+Details: [
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_assignee using planner_tasks(assigned_to_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_creator using planner_tasks(created_by) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_deleter using planner_tasks(deleted_by_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_assigned_to_id_fkey using planner_tasks(assigned_to_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_created_by_fkey using planner_tasks(created_by) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_marked_done_by_id_fkey using planner_tasks(marked_done_by_id) and profiles(id)"
+  }
+]
+
+--- Checking Deleter ---
+Error: Could not embed because more than one relationship was found for 'planner_tasks' and 'profiles'
+Hint: Try changing 'profiles' to one of the following: 'profiles!fk_planner_assignee', 'profiles!fk_planner_creator', 'profiles!fk_planner_deleter', 'profiles!planner_tasks_assigned_to_id_fkey', 'profiles!planner_tasks_created_by_fkey', 'profiles!planner_tasks_marked_done_by_id_fkey'. Find the desired relationship in the 'details' key.
+Details: [
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_assignee using planner_tasks(assigned_to_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_creator using planner_tasks(created_by) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "fk_planner_deleter using planner_tasks(deleted_by_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_assigned_to_id_fkey using planner_tasks(assigned_to_id) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_created_by_fkey using planner_tasks(created_by) and profiles(id)"
+  },
+  {
+    "cardinality": "many-to-one",
+    "embedding": "planner_tasks with profiles",
+    "relationship": "planner_tasks_marked_done_by_id_fkey using planner_tasks(marked_done_by_id) and profiles(id)"
+  }
+]

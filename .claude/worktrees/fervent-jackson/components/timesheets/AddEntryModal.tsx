@@ -14,11 +14,12 @@ interface AddEntryModalProps {
     onClose: () => void
     date: Date | null
     projects: any[]
-    companies?: any[] 
+    companies?: any[]
+    departments?: any[]
     defaultCompanyId?: string
 }
 
-export function AddEntryModal({ isOpen, onClose, date, projects, companies = [], defaultCompanyId }: AddEntryModalProps) {
+export function AddEntryModal({ isOpen, onClose, date, projects, companies = [], departments = [], defaultCompanyId }: AddEntryModalProps) {
     const [pending, setPending] = useState(false)
     const [isAdditionalWork, setIsAdditionalWork] = useState(false)
     
@@ -37,6 +38,26 @@ export function AddEntryModal({ isOpen, onClose, date, projects, companies = [],
         if (!selectedCompanyId) return []
         return projects.filter(p => p.company_id === selectedCompanyId)
     }, [projects, selectedCompanyId])
+
+    // Detect duplicate project names across ALL user projects for disambiguation
+    const duplicateNames = useMemo(() => {
+        const nameCount: Record<string, number> = {}
+        for (const p of projects) {
+            nameCount[p.name] = (nameCount[p.name] || 0) + 1
+        }
+        return new Set(Object.keys(nameCount).filter(n => nameCount[n] > 1))
+    }, [projects])
+
+    const getProjectDisplayName = (p: any) => {
+        if (!duplicateNames.has(p.name)) {
+            return p.code ? `${p.name} (${p.code})` : p.name
+        }
+        const dept = departments.find((d: any) => d.id === p.department_id)
+        const company = companies.find((c: any) => c.id === p.company_id)
+        const suffix = [dept?.name, company?.name].filter(Boolean).join(' - ')
+        const label = suffix ? `${p.name} - ${suffix}` : p.name
+        return p.code ? `${label} (${p.code})` : label
+    }
 
     const handleSubmit = async (formData: FormData) => {
         setPending(true)
@@ -109,7 +130,7 @@ export function AddEntryModal({ isOpen, onClose, date, projects, companies = [],
                                     {filteredProjects.length === 0 ? "No projects found" : "Select a project..."}
                                 </option>
                                 {filteredProjects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name} {p.code ? `(${p.code})` : ''}</option>
+                                    <option key={p.id} value={p.id}>{getProjectDisplayName(p)}</option>
                                 ))}
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">

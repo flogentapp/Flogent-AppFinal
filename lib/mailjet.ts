@@ -96,3 +96,136 @@ export async function sendCredentialsEmail(
         return { success: false, error: error.message }
     }
 }
+
+export async function sendWaitingReminderEmail(
+    toEmail: string,
+    userName: string,
+    taskTitle: string,
+    projectName: string,
+    waitDays: number,
+    returnDate: string,
+    reason: string
+) {
+    const MJ_API_KEY = process.env.MAILJET_API_KEY || process.env.MJ_API_KEY || process.env.MJ_APIKEY_PUBLIC
+    const MJ_API_SECRET = process.env.MAILJET_SECRET_KEY || process.env.MAILJET_API_SECRET || process.env.MJ_API_SECRET || process.env.MJ_APIKEY_PRIVATE
+
+    if (!MJ_API_KEY || !MJ_API_SECRET) return { success: false, error: 'Missing Mailjet Keys' }
+
+    try {
+        const auth = Buffer.from(`${MJ_API_KEY}:${MJ_API_SECRET}`).toString('base64')
+        const response = await fetch('https://api.mailjet.com/v3.1/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth },
+            body: JSON.stringify({
+                Messages: [{
+                    From: { Email: 'flogent.app@gmail.com', Name: 'Flogent Planner' },
+                    To: [{ Email: toEmail, Name: userName }],
+                    Subject: `Task Waiting Reminder: ${taskTitle}`,
+                    HTMLPart: `
+                        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 12px; border-top: 4px solid #f59e0b;">
+                            <h3 style="color: #d97706; margin-top: 0;">Task Set to Waiting</h3>
+                            <p>Hi ${userName},</p>
+                            <p>You've set the following task to <strong>Waiting</strong> for <strong>${waitDays}</strong> days.</p>
+                            
+                            <div style="background:#fffcf2; padding:20px; border-radius:10px; border:1px solid #fef3c7; margin:20px 0;">
+                                <div style="margin-bottom:12px;">
+                                    <span style="color:#92400e; font-size:10px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;">Task</span><br/>
+                                    <strong style="font-size:16px;">${taskTitle}</strong>
+                                </div>
+                                <div style="margin-bottom:12px;">
+                                    <span style="color:#92400e; font-size:10px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;">Project</span><br/>
+                                    <strong>${projectName}</strong>
+                                </div>
+                                <div style="margin-bottom:12px;">
+                                    <span style="color:#92400e; font-size:10px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;">Follow up on</span><br/>
+                                    <strong>${returnDate}</strong>
+                                </div>
+                                <div>
+                                    <span style="color:#92400e; font-size:10px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;">Reason</span><br/>
+                                    <i style="color:#78350f;">"${reason || 'No reason specified'}"</i>
+                                </div>
+                            </div>
+                            
+                            <p style="font-size:13px; color:#6b7280; line-height:1.6;">
+                                This email serves as a reminder that this task is now in your backlog and will be brought back to your active list on the date above.
+                            </p>
+                            
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0;">
+                            <p style="font-size: 11px; color: #9ca3af; text-align: center;">Flogent Project Planner</p>
+                        </div>
+                    `
+                }]
+            })
+        })
+
+        if (!response.ok) return { success: false, error: 'Mailjet API error' }
+        return { success: true }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
+
+export async function sendTaskAssignedEmail(
+    toEmail: string,
+    userName: string,
+    taskTitle: string,
+    projectName: string,
+    assignerName: string,
+    dueDate: string | null
+) {
+    const MJ_API_KEY = process.env.MAILJET_API_KEY || process.env.MJ_API_KEY || process.env.MJ_APIKEY_PUBLIC
+    const MJ_API_SECRET = process.env.MAILJET_SECRET_KEY || process.env.MAILJET_API_SECRET || process.env.MJ_API_SECRET || process.env.MJ_APIKEY_PRIVATE
+
+    if (!MJ_API_KEY || !MJ_API_SECRET) return { success: false, error: 'Missing Mailjet Keys' }
+
+    try {
+        const auth = Buffer.from(`${MJ_API_KEY}:${MJ_API_SECRET}`).toString('base64')
+        const response = await fetch('https://api.mailjet.com/v3.1/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth },
+            body: JSON.stringify({
+                Messages: [{
+                    From: { Email: 'flogent.app@gmail.com', Name: 'Flogent Planner' },
+                    To: [{ Email: toEmail, Name: userName }],
+                    Subject: `New Task Assigned: ${taskTitle}`,
+                    HTMLPart: `
+                        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 12px; border-top: 4px solid #4f46e5;">
+                            <h3 style="color: #4f46e5; margin-top: 0;">New Task Assigned</h3>
+                            <p>Hi ${userName},</p>
+                            <p><strong>${assignerName}</strong> has assigned a new task to you.</p>
+                            
+                            <div style="background:#f9fafb; padding:20px; border-radius:10px; border:1px solid #e5e7eb; margin:20px 0;">
+                                <div style="margin-bottom:12px;">
+                                    <span style="color:#6b7280; font-size:10px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;">Task</span><br/>
+                                    <strong style="font-size:16px;">${taskTitle}</strong>
+                                </div>
+                                <div style="margin-bottom:12px;">
+                                    <span style="color:#6b7280; font-size:10px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;">Project</span><br/>
+                                    <strong>${projectName}</strong>
+                                </div>
+                                ${dueDate ? `
+                                <div>
+                                    <span style="color:#6b7280; font-size:10px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;">Due Date</span><br/>
+                                    <strong>${dueDate}</strong>
+                                </div>
+                                ` : ''}
+                            </div>
+                            
+                            <p style="font-size:13px; color:#6b7280; line-height:1.6;">
+                                You can view this task in your Project Planner and start tracking progress.
+                            </p>
+                            
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0;">
+                            <p style="font-size: 11px; color: #9ca3af; text-align: center;">Flogent Project Planner</p>
+                        </div>
+                    `
+                }]
+            })
+        })
+
+        if (!response.ok) return { success: false, error: 'Mailjet API error' }
+        return { success: true }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}

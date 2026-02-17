@@ -66,8 +66,10 @@ export async function getPendingApprovals() {
   const permissions = await getUserPermissions()
   if (!permissions.canManageAny) return []
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('tenant_id, current_company_id').eq('id', user.id).single()
   if (!profile) return []
+
+  const activeCompanyId = profile.current_company_id
 
   let query = supabase
     .from('time_entries')
@@ -75,27 +77,68 @@ export async function getPendingApprovals() {
     .eq('tenant_id', profile.tenant_id)
     .eq('status', 'submitted')
 
-  if (!permissions.isOwner && !permissions.isCEO) {
-    const allowedProjectIds = new Set<string>()
+  const allowedProjectIds = new Set<string>()
 
-    if (permissions.isProjectLeader) {
-      permissions.managedProjectIds.forEach(id => allowedProjectIds.add(id))
+  if (!permissions.isOwner) {
+    // 1. If CEO of some companies, find projects in those companies
+    if (permissions.isCEO) {
+      const { data: ceoProjects } = await supabase
+        .from('projects')
+        .select('id, company_id')
+        .in('company_id', permissions.managedCompanyIds)
+
+      ceoProjects?.forEach(p => {
+        // If an active company is set, only allow projects within it.
+        // Otherwise allow overall managed projects.
+        if (!activeCompanyId || p.company_id === activeCompanyId) {
+          allowedProjectIds.add(p.id)
+        }
+      })
     }
 
+    // 2. If Dept Head
     if (permissions.isDepartmentHead) {
       const { data: deptProjects } = await supabase
         .from('projects')
-        .select('id')
+        .select('id, company_id')
         .in('department_id', permissions.managedDepartmentIds)
-      deptProjects?.forEach(p => allowedProjectIds.add(p.id))
+
+      deptProjects?.forEach(p => {
+        if (!activeCompanyId || p.company_id === activeCompanyId) {
+          allowedProjectIds.add(p.id)
+        }
+      })
+    }
+
+    // 3. If Project Leader
+    if (permissions.isProjectLeader) {
+      // Find projects I lead (must still belong to active company if set)
+      const { data: ledProjects } = await supabase
+        .from('projects')
+        .select('id, company_id')
+        .in('id', permissions.managedProjectIds)
+
+      ledProjects?.forEach(p => {
+        if (!activeCompanyId || p.company_id === activeCompanyId) {
+          allowedProjectIds.add(p.id)
+        }
+      })
     }
 
     const finalIds = Array.from(allowedProjectIds)
     if (finalIds.length > 0) {
       query = query.in('project_id', finalIds)
     } else {
-      return []
+      return [] // No managed projects in this company
     }
+  } else if (activeCompanyId) {
+    // Owner case - still scope to active company if set
+    const { data: companyProjs } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('company_id', activeCompanyId)
+
+    query = query.in('project_id', companyProjs?.map(p => p.id) || [])
   }
 
   const { data } = await query.order('entry_date', { ascending: false })
@@ -142,27 +185,50 @@ export async function getReportData() {
   const permissions = await getUserPermissions()
   if (!permissions.canManageAny) return []
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('tenant_id, current_company_id').eq('id', user.id).single()
   if (!profile) return []
+
+  const activeCompanyId = profile.current_company_id
 
   let query = supabase
     .from('time_entries')
     .select('*, profiles(first_name, last_name), projects(*, departments(name))')
     .eq('tenant_id', profile.tenant_id)
 
-  if (!permissions.isOwner && !permissions.isCEO) {
-    const allowedProjectIds = new Set<string>()
+  const allowedProjectIds = new Set<string>()
 
-    if (permissions.isProjectLeader) {
-      permissions.managedProjectIds.forEach(id => allowedProjectIds.add(id))
+  if (!permissions.isOwner) {
+    // 1. CEO scoping
+    if (permissions.isCEO) {
+      const { data: ceoProjects } = await supabase
+        .from('projects')
+        .select('id, company_id')
+        .in('company_id', permissions.managedCompanyIds)
+      ceoProjects?.forEach(p => {
+        if (!activeCompanyId || p.company_id === activeCompanyId) allowedProjectIds.add(p.id)
+      })
     }
 
+    // 2. Dept Head scoping
     if (permissions.isDepartmentHead) {
       const { data: deptProjects } = await supabase
         .from('projects')
-        .select('id')
+        .select('id, company_id')
         .in('department_id', permissions.managedDepartmentIds)
-      deptProjects?.forEach(p => allowedProjectIds.add(p.id))
+      deptProjects?.forEach(p => {
+        if (!activeCompanyId || p.company_id === activeCompanyId) allowedProjectIds.add(p.id)
+      })
+    }
+
+    // 3. Project Leader scoping
+    if (permissions.isProjectLeader) {
+      const { data: ledProjects } = await supabase
+        .from('projects')
+        .select('id, company_id')
+        .in('id', permissions.managedProjectIds)
+      ledProjects?.forEach(p => {
+        if (!activeCompanyId || p.company_id === activeCompanyId) allowedProjectIds.add(p.id)
+      })
     }
 
     const finalIds = Array.from(allowedProjectIds)
@@ -171,6 +237,10 @@ export async function getReportData() {
     } else {
       return []
     }
+  } else if (activeCompanyId) {
+    // Owner case - scope to active company
+    const { data: compProjIds } = await supabase.from('projects').select('id').eq('company_id', activeCompanyId)
+    query = query.in('project_id', compProjIds?.map(p => p.id) || [])
   }
 
   const { data } = await query.order('entry_date', { ascending: false })

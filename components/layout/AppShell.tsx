@@ -26,6 +26,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     let companies: any[] = []
     let departments: any[] = []
     let projects: any[] = []
+    let activeSelectedCompany: any = null
 
     if (activeTenantId) {
         const [
@@ -38,14 +39,59 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             adminClient.from('projects').select('id, name, department_id, company_id').eq('tenant_id', activeTenantId).order('name')
         ])
 
-        companies = companiesData || []
-        departments = deptsData || []
-        projects = projectsData || []
+        const allCompanies = companiesData || []
+        const allDepts = deptsData || []
+        const allProjs = projectsData || []
+
+        // 1. Resolve Accessible Company IDs
+        const toegestaneCompanyIds = new Set<string>(permissions.accessibleCompanyIds || [])
+        const allMemberProjIds = permissions.allMemberProjIds || []
+
+        // CEO of a company manages that company
+        permissions.managedCompanyIds.forEach(id => toegestaneCompanyIds.add(id))
+
+        // Project members can see their company
+        allProjs.forEach(p => {
+            if (allMemberProjIds.includes(p.id)) {
+                toegestaneCompanyIds.add(p.company_id)
+            }
+        })
+
+        if (permissions.isOwner) {
+            companies = allCompanies
+        } else {
+            companies = allCompanies.filter(c => toegestaneCompanyIds.has(c.id))
+        }
+
+        // 2. Resolve Active Company Context
+        // Priority: Profile -> Metadata -> First Available Company
+        const currentCompId = profile?.current_company_id || user.user_metadata?.current_company_id || (companies.length > 0 ? companies[0].id : null)
+
+        // 3. Filter Departments & Projects strictly
+        departments = allDepts.filter(d => d.company_id === currentCompId)
+
+        projects = allProjs.filter(p => {
+            // Must belong to active company
+            if (p.company_id !== currentCompId) return false
+
+            // Visibility rules:
+            if (permissions.isOwner) return true
+
+            // CEO of this company sees all its projects
+            if (permissions.managedCompanyIds.includes(p.company_id)) return true
+
+            // Dept Head of this department sees all its projects
+            if (p.department_id && permissions.managedDepartmentIds.includes(p.department_id)) return true
+
+            // Otherwise, must be a member
+            return allMemberProjIds.includes(p.id)
+        })
+
+        // 4. Set final context for UI
+        activeSelectedCompany = companies.find(c => c.id === currentCompId) || companies[0]
     }
 
-    const currentCompany = companies.find(c => c.id === activeCompanyId)
-        || companies[0]
-        || { id: '00000000-0000-0000-0000-000000000000', name: 'Select Company' }
+    const currentCompany = activeSelectedCompany || { id: '00000000-0000-0000-0000-000000000000', name: 'Select Company' }
 
     let enabledApps: string[] = []
     if (activeTenantId) {

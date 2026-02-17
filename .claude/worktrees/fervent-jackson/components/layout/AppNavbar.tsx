@@ -14,13 +14,24 @@ export async function AppNavbar() {
         .eq('id', user.id)
         .single()
 
-    // 2. Fetch Companies (Only if we have a tenant)
+    // 2. Derive companies from user's project memberships (only show companies with assigned projects)
     let companies: any[] = []
-    if (profile?.tenant_id) {
+    const { data: membershipData } = await supabase
+        .from('project_memberships')
+        .select('projects ( company_id )')
+        .eq('user_id', user.id)
+
+    const userCompanyIds = [...new Set(
+        membershipData
+            ?.filter((m: any) => m.projects?.company_id)
+            .map((m: any) => m.projects.company_id) || []
+    )]
+
+    if (userCompanyIds.length > 0) {
         const { data } = await supabase
             .from('companies')
             .select('id, name')
-            .eq('tenant_id', profile.tenant_id)
+            .in('id', userCompanyIds)
             .eq('status', 'active')
             .order('name')
         companies = data || []

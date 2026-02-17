@@ -21,17 +21,22 @@ export default async function TimesheetsPage() {
     .select('*, projects(name, code, company_id, department_id)')
     .eq('user_id', user.id)
 
-  // Apply Global Context Filters
+  // Apply Global Context Filters (Strict Scoping)
+  const activeCompanyId = profile?.current_company_id || (user as any).user_metadata?.current_company_id
   if (profile?.current_project_id) {
     query = query.eq('project_id', profile.current_project_id)
   } else if (profile?.current_department_id) {
     const { data: deptProjs } = await supabase.from('projects').select('id').eq('department_id', profile.current_department_id)
     const ids = deptProjs?.map(p => p.id) || []
     query = query.in('project_id', ids)
-  } else if (profile?.current_company_id) {
-    const { data: companyProjs } = await supabase.from('projects').select('id').eq('company_id', profile.current_company_id)
+  } else if (activeCompanyId) {
+    const { data: companyProjs } = await supabase.from('projects').select('id').eq('company_id', activeCompanyId)
     const ids = companyProjs?.map(p => p.id) || []
     query = query.in('project_id', ids)
+  } else if (profile?.tenant_id) {
+    // If no specific company active, but in a tenant, we MUST still scope to at least one 
+    // to avoid cross-pollination. Usually AppShell ensures one is selected.
+    query = query.eq('project_id', '00000000-0000-0000-0000-000000000000') // Force empty if no context
   }
 
   const { data: rawEntries } = await query.order('entry_date', { ascending: false })
