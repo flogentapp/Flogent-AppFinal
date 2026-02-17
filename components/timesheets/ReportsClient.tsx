@@ -12,22 +12,27 @@ export function ReportsClient({ initialData }: { initialData: any[] }) {
   const [selectedProject, setSelectedProject] = useState('All')
   const [selectedUser, setSelectedUser] = useState('All')
   const [selectedDept, setSelectedDept] = useState('All')
-  const [selectedWorkType, setSelectedWorkType] = useState('All') // All, Standard, Additional
+  const [selectedWorkType, setSelectedWorkType] = useState('All')
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
   const [dateRange, setDateRange] = useState({
     start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
     end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   })
 
-  // --- EXTRACT UNIQUE OPTIONS FOR DROPDOWNS ---
+  // --- EXTRACT UNIQUE OPTIONS ---
   const options = useMemo(() => {
     const projects = new Set(['All'])
     const users = new Set(['All'])
     const depts = new Set(['All'])
 
     initialData.forEach(item => {
-      if (item.projects?.name) projects.add(item.projects.name)
-      if (item.profiles) users.add(`${item.profiles.first_name} ${item.profiles.last_name}`)
-      if (item.projects?.departments?.name) depts.add(item.projects.departments.name)
+      const projectName = item.projects?.name
+      const userName = item.profiles ? `${item.profiles.first_name} ${item.profiles.last_name}` : null
+      const deptName = item.projects?.departments?.name
+
+      if (projectName) projects.add(projectName)
+      if (userName) users.add(userName)
+      if (deptName) depts.add(deptName)
     })
 
     return {
@@ -44,11 +49,8 @@ export function ReportsClient({ initialData }: { initialData: any[] }) {
       const start = parseISO(dateRange.start)
       const end = parseISO(dateRange.end)
 
-      // 1. Date Range Check
-      const inDate = isWithinInterval(date, { start, end })
-      if (!inDate) return false
+      if (!isWithinInterval(date, { start, end })) return false
 
-      // 2. Dropdown Checks
       const userName = `${item.profiles?.first_name} ${item.profiles?.last_name}`
       const projectName = item.projects?.name || ''
       const deptName = item.projects?.departments?.name || 'Unassigned'
@@ -60,42 +62,66 @@ export function ReportsClient({ initialData }: { initialData: any[] }) {
       if (selectedWorkType === 'Additional' && !item.is_additional_work) return false
       if (selectedWorkType === 'Standard' && item.is_additional_work) return false
 
-      // 3. Text Search (Description, etc)
       if (search) {
-        const searchLower = search.toLowerCase()
+        const lowerSearch = search.toLowerCase()
         return (
-          item.description?.toLowerCase().includes(searchLower) ||
-          projectName.toLowerCase().includes(searchLower) ||
-          userName.toLowerCase().includes(searchLower)
+          item.description?.toLowerCase().includes(lowerSearch) ||
+          projectName.toLowerCase().includes(lowerSearch) ||
+          userName.toLowerCase().includes(lowerSearch)
         )
       }
-
       return true
     })
   }, [initialData, search, selectedProject, selectedUser, selectedDept, selectedWorkType, dateRange])
 
-  // --- CALCULATE TOTALS ---
-  const totalHours = filteredData.reduce((sum, item) => sum + (item.hours || 0), 0)
+  // --- GROUPING BY USER ---
+  const groupedByUser = useMemo(() => {
+    const groups: Record<string, { profile: any, total: number, entries: any[] }> = {}
+
+    filteredData.forEach(entry => {
+      const uid = entry.user_id
+      if (!groups[uid]) {
+        groups[uid] = { profile: entry.profiles, total: 0, entries: [] }
+      }
+      groups[uid].total += entry.hours
+      groups[uid].entries.push(entry)
+    })
+
+    return Object.entries(groups)
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.total - a.total)
+  }, [filteredData])
+
+  const totalHours = filteredData.reduce((sum, item) => sum + (Number(item.hours) || 0), 0)
+
+  const toggleUser = (userId: string) => {
+    const next = new Set(expandedUsers)
+    if (next.has(userId)) next.delete(userId)
+    else next.add(userId)
+    setExpandedUsers(next)
+  }
 
   return (
     <div className="space-y-6">
       {/* HEADER & METRICS */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Timesheet Reports</h1>
-          <p className="text-gray-500 text-sm font-medium">Analyze team performance and project visibility.</p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm transition-all hover:shadow-md">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Intelligence Reports</h1>
+          <p className="text-gray-500 text-sm font-medium">Aggregated team performance analytics.</p>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-8 bg-slate-50/50 p-6 rounded-3xl border border-slate-100/50">
           <div className="text-right">
-            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Total Hours</div>
-            <div className="text-3xl font-black text-indigo-600 leading-none">{totalHours.toFixed(1)}</div>
+            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Grand Total</div>
+            <div className="text-4xl font-black text-indigo-600 leading-none">
+              {totalHours.toFixed(1)}<span className="text-xs ml-0.5 opacity-40">h</span>
+            </div>
           </div>
-          <div className="h-10 w-px bg-gray-100 hidden sm:block"></div>
+          <div className="h-12 w-px bg-gray-200"></div>
           <div className="text-right">
-            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Total Logs</div>
-            <div className="text-3xl font-black text-gray-900 leading-none">{filteredData.length}</div>
+            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Active Headcount</div>
+            <div className="text-4xl font-black text-gray-900 leading-none">{groupedByUser.length}</div>
           </div>
-          <Button variant="outline" className="ml-4 border-gray-200 hover:bg-gray-50">
+          <Button variant="outline" className="hidden sm:flex ml-4 rounded-xl border-gray-200 hover:bg-white hover:border-indigo-200 hover:text-indigo-600 transition-all">
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -103,202 +129,128 @@ export function ReportsClient({ initialData }: { initialData: any[] }) {
       </div>
 
       {/* FILTERS TOOLBAR */}
-      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Date Start */}
+      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1.5 tracking-wider">From Date</label>
-            <Input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="bg-gray-50/50 border-gray-100 focus:bg-white transition-all"
-            />
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-1 block mb-2 tracking-widest">From Date</label>
+            <Input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))} className="rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-500/20" />
           </div>
-
-          {/* Date End */}
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1.5 tracking-wider">To Date</label>
-            <Input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="bg-gray-50/50 border-gray-100 focus:bg-white transition-all"
-            />
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-1 block mb-2 tracking-widest">To Date</label>
+            <Input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))} className="rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-500/20" />
           </div>
-
-          {/* Dept Filter */}
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1.5 tracking-wider">Department</label>
-            <select
-              className="w-full h-10 px-3 rounded-lg border border-gray-100 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              value={selectedDept}
-              onChange={(e) => setSelectedDept(e.target.value)}
-            >
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-1 block mb-2 tracking-widest">Department</label>
+            <select className="w-full h-10 px-4 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white border-r-8 border-transparent" value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}>
               {options.depts.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
-
-          {/* Project Filter */}
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1.5 tracking-wider">Project Name</label>
-            <select
-              className="w-full h-10 px-3 rounded-lg border border-gray-100 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-            >
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-1 block mb-2 tracking-widest">Project</label>
+            <select className="w-full h-10 px-4 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white border-r-8 border-transparent" value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
               {options.projects.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-gray-50">
-          {/* User Filter */}
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1.5 tracking-wider">Employee</label>
-            <select
-              className="w-full h-10 px-3 rounded-lg border border-gray-100 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-            >
-              {options.users.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 pt-6 border-t border-slate-50">
+          <div className="lg:col-span-3">
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-1 block mb-2 tracking-widest">Search Description / Context</label>
+            <div className="relative">
+              <Search className="absolute left-4 top-3 w-4 h-4 text-slate-400" />
+              <input type="text" placeholder="Filter by notes, project codes, or names..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full h-11 pl-11 pr-4 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all" />
+            </div>
           </div>
-
-          {/* Work Type Filter */}
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1.5 tracking-wider">Work Type</label>
-            <select
-              className="w-full h-10 px-3 rounded-lg border border-gray-100 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              value={selectedWorkType}
-              onChange={(e) => setSelectedWorkType(e.target.value)}
-            >
-              <option value="All">All Work</option>
-              <option value="Standard">Standard Only</option>
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-1 block mb-2 tracking-widest">Work Type</label>
+            <select className="w-full h-11 px-4 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white border-r-8 border-transparent" value={selectedWorkType} onChange={(e) => setSelectedWorkType(e.target.value)}>
+              <option value="All">All Categories</option>
+              <option value="Standard">Standard Work</option>
               <option value="Additional">Additional Only</option>
             </select>
-          </div>
-
-          {/* Search Box */}
-          <div className="lg:col-span-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1.5 tracking-wider">Keyword Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by description, project, or user..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full h-10 pl-10 pr-3 rounded-lg border border-gray-100 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              />
-            </div>
           </div>
         </div>
       </div>
 
-      {/* DATA VISUALIZATION */}
+      {/* DATA VISUALIZATION - PERSON TOTALS */}
       <div className="space-y-4">
-        {/* MOBILE CARDS */}
-        <div className="grid grid-cols-1 gap-4 lg:hidden">
-          {filteredData.length === 0 ? (
-            <div className="bg-white p-12 text-center text-gray-400 rounded-2xl border border-dashed border-gray-200">
-              No entries found matching these filters.
-            </div>
-          ) : (
-            filteredData.map((item) => (
-              <div key={item.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
+        {groupedByUser.length === 0 ? (
+          <div className="bg-white p-20 text-center rounded-[2rem] border border-dashed border-slate-200">
+            <X className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+            <p className="text-slate-400 font-bold">No results matching your filters.</p>
+          </div>
+        ) : (
+          groupedByUser.map(group => (
+            <div key={group.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden transition-all hover:border-indigo-100">
+              {/* SUMMARY ROW (PERSON TOTAL) */}
+              <button
+                onClick={() => toggleUser(group.id)}
+                className="w-full flex items-center justify-between p-6 sm:p-8 text-left hover:bg-slate-50/50 transition-colors group"
+              >
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-100 group-hover:scale-105 transition-transform">
+                    {group.profile?.first_name?.charAt(0)}
+                  </div>
                   <div>
-                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mb-1">
-                      {format(parseISO(item.date), 'MMM d, yyyy')}
-                    </div>
-                    <div className="font-black text-slate-900 text-sm">
-                      {item.profiles?.first_name} {item.profiles?.last_name}
-                    </div>
+                    <h3 className="text-lg font-black text-slate-900 leading-tight">{group.profile?.first_name} {group.profile?.last_name}</h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">{group.entries.length} segments loged</p>
                   </div>
-                  <StatusBadge status={item.status} />
                 </div>
 
-                <div className="flex items-center justify-between py-3 border-y border-slate-50">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Project</span>
-                    <span className="text-sm font-bold text-indigo-600">{item.projects?.name}</span>
-                  </div>
+                <div className="flex items-center gap-8">
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block mb-0.5">Hours</span>
-                    <span className="text-lg font-black text-slate-900 leading-none">{item.hours}h</span>
+                    <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Cumulative</div>
+                    <div className="text-2xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{group.total.toFixed(1)}h</div>
+                  </div>
+                  <div className={`p-2 rounded-full border border-slate-200 transition-all ${expandedUsers.has(group.id) ? 'rotate-180 bg-slate-900 border-slate-900 text-white' : 'bg-white text-slate-400 group-hover:text-slate-900'}`}>
+                    <Filter className="w-4 h-4" />
                   </div>
                 </div>
+              </button>
 
-                {item.description && (
-                  <div className="bg-slate-50 p-3 rounded-xl">
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed italic">"{item.description}"</p>
+              {/* DETAILS SECTION (INDIVIDUAL ENTRIES) */}
+              {expandedUsers.has(group.id) && (
+                <div className="px-6 pb-8 border-t border-slate-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="overflow-x-auto mt-6">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] border-b border-slate-50">
+                          <th className="px-4 py-3 text-left">Date</th>
+                          <th className="px-4 py-3 text-left">Project / Department</th>
+                          <th className="px-4 py-3 text-left">Status</th>
+                          <th className="px-4 py-3 text-left">Description</th>
+                          <th className="px-4 py-3 text-right">Hours</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {group.entries.map(entry => (
+                          <tr key={entry.id} className="text-sm hover:bg-slate-50/50">
+                            <td className="px-4 py-4 font-bold text-slate-500 whitespace-nowrap">
+                              {format(parseISO(entry.date), 'MMM d, yyyy')}
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="font-bold text-indigo-600 truncate max-w-[150px]">{entry.projects?.name}</div>
+                              <div className="text-[10px] font-black text-slate-300 uppercase tracking-tight">{entry.projects?.departments?.name || 'General'}</div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <StatusBadge status={entry.status} />
+                            </td>
+                            <td className="px-4 py-4 text-slate-400 italic text-xs max-w-xs truncate">
+                              "{entry.description || 'No notes'}"
+                            </td>
+                            <td className="px-4 py-4 text-right font-black text-slate-900">
+                              {entry.hours}h
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
-
-                <div>
-                  <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-[10px] uppercase font-black tracking-tight border border-slate-200">
-                    {item.projects?.departments?.name || 'Unassigned'}
-                  </span>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* DESKTOP TABLE */}
-        <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-widest">
-              <tr>
-                <th className="px-6 py-4 text-left">Date</th>
-                <th className="px-6 py-4 text-left">User</th>
-                <th className="px-6 py-4 text-left">Department</th>
-                <th className="px-6 py-4 text-left">Project</th>
-                <th className="px-6 py-4 text-left">Description</th>
-                <th className="px-6 py-3 text-right">Hours</th>
-                <th className="px-6 py-3 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-medium italic">
-                    No entries found matching these filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredData.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-5 text-gray-500 whitespace-nowrap font-medium">
-                      {format(parseISO(item.date), 'MMM d, yyyy')}
-                    </td>
-                    <td className="px-6 py-5 text-gray-900 font-bold whitespace-nowrap">
-                      {item.profiles?.first_name} {item.profiles?.last_name}
-                    </td>
-                    <td className="px-6 py-5">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-[10px] uppercase font-black tracking-tight border border-slate-200">
-                        {item.projects?.departments?.name || 'Unassigned'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 text-indigo-600 font-bold">
-                      {item.projects?.name}
-                    </td>
-                    <td className="px-6 py-5 text-gray-500 max-w-xs truncate font-medium" title={item.description}>
-                      {item.description}
-                    </td>
-                    <td className="px-6 py-5 text-right font-black text-slate-900">
-                      {item.hours}h
-                    </td>
-                    <td className="px-6 py-5 text-right">
-                      <StatusBadge status={item.status} />
-                    </td>
-                  </tr>
-                ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )
@@ -306,13 +258,14 @@ export function ReportsClient({ initialData }: { initialData: any[] }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: any = {
-    approved: 'bg-green-100 text-green-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-    rejected: 'bg-red-100 text-red-700',
-    draft: 'bg-gray-100 text-gray-600'
+    approved: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    pending: 'bg-amber-50 text-amber-600 border-amber-100',
+    submitted: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+    rejected: 'bg-rose-50 text-rose-600 border-rose-100',
+    draft: 'bg-slate-50 text-slate-500 border-slate-100'
   }
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-bold capitalize ${styles[status] || styles.draft}`}>
+    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-tight border ${styles[status] || styles.draft}`}>
       {status}
     </span>
   )

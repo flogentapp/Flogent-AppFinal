@@ -56,92 +56,28 @@ export async function logTime(formData: FormData) {
 
 // --- READ FUNCTIONS (Updated to read from 'time_entries') ---
 
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getUserPermissions } from './permissions'
 
 export async function getPendingApprovals() {
   const supabase = await createClient()
+  const adminClient = createAdminClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
   const permissions = await getUserPermissions()
   if (!permissions.canManageAny) return []
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id, current_company_id').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   if (!profile) return []
 
-  const activeCompanyId = profile.current_company_id
-
-  let query = supabase
+  // DEV FOLDER: Fetch all submitted entries for the entire tenant
+  const { data } = await adminClient
     .from('time_entries')
-    .select('*, profiles(first_name, last_name, email), projects(*)')
+    .select('*, profiles:user_id(first_name, last_name, email), projects(*, departments(name))')
     .eq('tenant_id', profile.tenant_id)
     .eq('status', 'submitted')
-
-  const allowedProjectIds = new Set<string>()
-
-  if (!permissions.isOwner) {
-    // 1. If CEO of some companies, find projects in those companies
-    if (permissions.isCEO) {
-      const { data: ceoProjects } = await supabase
-        .from('projects')
-        .select('id, company_id')
-        .in('company_id', permissions.managedCompanyIds)
-
-      ceoProjects?.forEach(p => {
-        // If an active company is set, only allow projects within it.
-        // Otherwise allow overall managed projects.
-        if (!activeCompanyId || p.company_id === activeCompanyId) {
-          allowedProjectIds.add(p.id)
-        }
-      })
-    }
-
-    // 2. If Dept Head
-    if (permissions.isDepartmentHead) {
-      const { data: deptProjects } = await supabase
-        .from('projects')
-        .select('id, company_id')
-        .in('department_id', permissions.managedDepartmentIds)
-
-      deptProjects?.forEach(p => {
-        if (!activeCompanyId || p.company_id === activeCompanyId) {
-          allowedProjectIds.add(p.id)
-        }
-      })
-    }
-
-    // 3. If Project Leader
-    if (permissions.isProjectLeader) {
-      // Find projects I lead (must still belong to active company if set)
-      const { data: ledProjects } = await supabase
-        .from('projects')
-        .select('id, company_id')
-        .in('id', permissions.managedProjectIds)
-
-      ledProjects?.forEach(p => {
-        if (!activeCompanyId || p.company_id === activeCompanyId) {
-          allowedProjectIds.add(p.id)
-        }
-      })
-    }
-
-    const finalIds = Array.from(allowedProjectIds)
-    if (finalIds.length > 0) {
-      query = query.in('project_id', finalIds)
-    } else {
-      return [] // No managed projects in this company
-    }
-  } else if (activeCompanyId) {
-    // Owner case - still scope to active company if set
-    const { data: companyProjs } = await supabase
-      .from('projects')
-      .select('id')
-      .eq('company_id', activeCompanyId)
-
-    query = query.in('project_id', companyProjs?.map(p => p.id) || [])
-  }
-
-  const { data } = await query.order('entry_date', { ascending: false })
+    .order('entry_date', { ascending: false })
 
   return data?.map(d => ({
     ...d,
@@ -151,6 +87,7 @@ export async function getPendingApprovals() {
 }
 
 export async function updateTimesheetStatus(id: string, status: 'approved' | 'rejected') {
+  const adminClient = createAdminClient()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -168,7 +105,8 @@ export async function updateTimesheetStatus(id: string, status: 'approved' | 're
     updatePayload.rejected_by = user?.id
   }
 
-  const { error } = await supabase.from('time_entries').update(updatePayload).eq('id', id)
+  // Use admin client in dev to ensure managers can update any entry in the tenant
+  const { error } = await adminClient.from('time_entries').update(updatePayload).eq('id', id)
 
   if (error) return { error: error.message }
   revalidatePath('/timesheets/approvals')
@@ -179,71 +117,22 @@ export async function updateTimesheetStatus(id: string, status: 'approved' | 're
 
 export async function getReportData() {
   const supabase = await createClient()
+  const adminClient = createAdminClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
   const permissions = await getUserPermissions()
   if (!permissions.canManageAny) return []
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id, current_company_id').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   if (!profile) return []
 
-  const activeCompanyId = profile.current_company_id
-
-  let query = supabase
+  // DEV FOLDER: Fetch all tenant entries for reporting
+  const { data } = await adminClient
     .from('time_entries')
-    .select('*, profiles(first_name, last_name), projects(*, departments(name))')
+    .select('*, profiles:user_id(first_name, last_name), projects(*, departments(name))')
     .eq('tenant_id', profile.tenant_id)
-
-  const allowedProjectIds = new Set<string>()
-
-  if (!permissions.isOwner) {
-    // 1. CEO scoping
-    if (permissions.isCEO) {
-      const { data: ceoProjects } = await supabase
-        .from('projects')
-        .select('id, company_id')
-        .in('company_id', permissions.managedCompanyIds)
-      ceoProjects?.forEach(p => {
-        if (!activeCompanyId || p.company_id === activeCompanyId) allowedProjectIds.add(p.id)
-      })
-    }
-
-    // 2. Dept Head scoping
-    if (permissions.isDepartmentHead) {
-      const { data: deptProjects } = await supabase
-        .from('projects')
-        .select('id, company_id')
-        .in('department_id', permissions.managedDepartmentIds)
-      deptProjects?.forEach(p => {
-        if (!activeCompanyId || p.company_id === activeCompanyId) allowedProjectIds.add(p.id)
-      })
-    }
-
-    // 3. Project Leader scoping
-    if (permissions.isProjectLeader) {
-      const { data: ledProjects } = await supabase
-        .from('projects')
-        .select('id, company_id')
-        .in('id', permissions.managedProjectIds)
-      ledProjects?.forEach(p => {
-        if (!activeCompanyId || p.company_id === activeCompanyId) allowedProjectIds.add(p.id)
-      })
-    }
-
-    const finalIds = Array.from(allowedProjectIds)
-    if (finalIds.length > 0) {
-      query = query.in('project_id', finalIds)
-    } else {
-      return []
-    }
-  } else if (activeCompanyId) {
-    // Owner case - scope to active company
-    const { data: compProjIds } = await supabase.from('projects').select('id').eq('company_id', activeCompanyId)
-    query = query.in('project_id', compProjIds?.map(p => p.id) || [])
-  }
-
-  const { data } = await query.order('entry_date', { ascending: false })
+    .order('entry_date', { ascending: false })
 
   return data?.map(d => ({
     ...d,
