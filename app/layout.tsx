@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description: "Enterprise resource planning and project management.",
 };
 
+import { UIProvider } from "@/components/providers/UIProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +30,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <UIProvider>
+          {children}
+        </UIProvider>
         <Toaster position="top-right" richColors />
       </body>
     </html>
