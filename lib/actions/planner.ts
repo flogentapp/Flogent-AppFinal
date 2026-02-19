@@ -34,11 +34,8 @@ export async function getPlannerTasks() {
         `)
         .eq('tenant_id', profile.tenant_id)
 
-    // Apply security filters locally if target company is active
-    if (profile.current_company_id) {
-        query = query.eq('company_id', profile.current_company_id)
-    }
-
+    // Fetches all tasks in the tenant. 
+    // The page component handles further scoping of projects/users for non-owners.
     const { data, error } = await query.order('created_at', { ascending: false })
     if (error) {
         console.error('Fetch Tasks Error:', JSON.stringify(error, null, 2))

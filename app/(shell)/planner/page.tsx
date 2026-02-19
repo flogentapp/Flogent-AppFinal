@@ -71,19 +71,6 @@ export default async function PlannerPage() {
             permissions.accessibleCompanyIds.includes(p.company_id || '') ||
             permissions.allMemberProjIds.includes(p.id)
         )
-
-        // If a company is active in context, restrict even further to THAT company
-        if (activeCompanyId) {
-            filteredProjects = filteredProjects.filter(p => p.company_id === activeCompanyId)
-        }
-
-        // Filter users: Only show users if they share a company/project? 
-        // For now, if not owner, only show users in the same company as the current user
-        if (activeCompanyId) {
-            // We'll need a way to know which company users belong to. 
-            // Profiles has current_company_id, but it's not a list of memberships.
-            // For now, we'll keep it to the tenant level but filtering projects is the primary goal.
-        }
     }
 
     return (
