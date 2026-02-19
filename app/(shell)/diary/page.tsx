@@ -1,13 +1,14 @@
 
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { getDiaryTemplates, getDailyDiaryEntry, getDiaryComplianceOverview } from '@/lib/actions/diary'
+import { getDiaryTemplates, getDailyDiaryEntries, getDiaryComplianceOverview } from '@/lib/actions/diary'
 import { DiaryClient } from '@/components/diary/DiaryClient'
 import { redirect } from 'next/navigation'
 import { format } from 'date-fns'
 import { getUserPermissions } from '@/lib/actions/permissions'
 
-export default async function DiaryPage({ searchParams }: any) {
+export default async function DiaryPage(props: { searchParams: Promise<{ date?: string }> }) {
+    const searchParams = await props.searchParams
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
@@ -24,22 +25,32 @@ export default async function DiaryPage({ searchParams }: any) {
     const permissions = await getUserPermissions()
     const isCEO = permissions.isOwner || permissions.isCEO || permissions.isAdmin
 
-    const [templates, currentEntry, compliance] = await Promise.all([
+    const [templates, initialEntries, compliance] = await Promise.all([
         getDiaryTemplates(),
-        getDailyDiaryEntry(date),
+        getDailyDiaryEntries(date),
         isCEO ? getDiaryComplianceOverview(date) : Promise.resolve([])
     ])
 
-    // Get all users for the CEO's overview
-    const { data: users } = isCEO ? await supabase.from('profiles').select('id, first_name, last_name').eq('tenant_id', permissions.tenantId || profile?.tenant_id) : { data: [] }
+    // Get users for the CEO's overview - strictly filtered by company if not owner
+    let usersQuery = supabase
+        .from('profiles')
+        .select('id, first_name, last_name, current_company_id')
+        .eq('tenant_id', permissions.tenantId || profile?.tenant_id)
+        .eq('status', 'active')
+
+    if (!permissions.isOwner && profile?.current_company_id) {
+        usersQuery = usersQuery.eq('current_company_id', profile.current_company_id)
+    }
+
+    const { data: users } = isCEO ? await usersQuery : { data: [] }
 
     return (
         <div className="p-4 md:p-8 max-w-7xl mx-auto">
             <Suspense fallback={<div>Loading Diary...</div>}>
                 <DiaryClient
                     initialTemplates={templates}
-                    initialEntry={currentEntry}
-                    compliance={compliance}
+                    initialEntries={initialEntries}
+                    initialCompliance={compliance}
                     isCEO={isCEO}
                     currentUser={profile}
                     selectedDate={date}

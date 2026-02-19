@@ -12,20 +12,31 @@ export async function getDiaryTemplates() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('tenant_id')
+        .select('tenant_id, current_company_id')
         .eq('id', user.id)
         .single()
 
     if (!profile) return []
 
-    const { data, error } = await supabase
+    const admin = createAdminClient()
+    let query = admin
         .from('diary_templates')
         .select('*')
         .eq('tenant_id', profile.tenant_id)
         .eq('is_active', true)
 
+    if (profile.current_company_id) {
+        query = query.eq('company_id', profile.current_company_id)
+    }
+
+    const { data, error } = await query
+
     if (error) {
-        console.error('Error fetching diary templates:', error)
+        if (error.code === 'PGRST205') {
+            console.warn('Diary templates table missing. Please run migrations.')
+            return []
+        }
+        console.error('Error fetching diary templates:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
         return []
     }
 
@@ -59,6 +70,7 @@ export async function createDiaryTemplate(formData: FormData) {
             title,
             description,
             fields,
+            accent_color: formData.get('accentColor') as string || 'indigo',
             created_by: user.id
         })
         .select()
@@ -70,24 +82,90 @@ export async function createDiaryTemplate(formData: FormData) {
     return { data }
 }
 
-export async function getDailyDiaryEntry(date: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
+export async function updateDiaryTemplate(id: string, formData: FormData) {
+    const admin = createAdminClient()
+    const title = formData.get('title') as string
+    const description = formData.get('description') as string
+    const fieldsRaw = formData.get('fields') as string
+    const fields = JSON.parse(fieldsRaw)
 
-    const { data, error } = await supabase
-        .from('diary_entries')
-        .select('*, template:diary_templates(*)')
-        .eq('user_id', user.id)
-        .eq('entry_date', date)
-        .maybeSingle()
+    const { error } = await admin
+        .from('diary_templates')
+        .update({
+            title,
+            description,
+            fields,
+            accent_color: formData.get('accentColor') as string || 'indigo',
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
 
-    if (error) {
-        console.error('Error fetching diary entry:', error)
-        return null
+    if (error) return { error: error.message }
+
+    revalidatePath('/diary')
+    return { success: true }
+}
+
+export async function toggleTemplateStatus(id: string, isActive: boolean) {
+    const admin = createAdminClient()
+    const { error } = await admin
+        .from('diary_templates')
+        .update({ is_active: isActive })
+        .eq('id', id)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/diary')
+    return { success: true }
+}
+
+export async function deleteDiaryTemplate(id: string) {
+    const admin = createAdminClient()
+    const { error } = await admin
+        .from('diary_templates')
+        .delete()
+        .eq('id', id)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/diary')
+    return { success: true }
+}
+
+export async function getDailyDiaryEntries(date: string) {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            console.warn('getDailyDiaryEntries: No user found')
+            return []
+        }
+
+        const admin = createAdminClient()
+        const { data, error } = await admin
+            .from('diary_entries')
+            .select(`
+                *,
+                template:diary_templates(*)
+            `)
+            .eq('user_id', user.id)
+            .eq('entry_date', date)
+            .order('created_at', { ascending: false })
+
+        if (error) {
+            if (error.code === 'PGRST205') {
+                console.warn('Diary tables missing from database.')
+                return []
+            }
+            console.error('Error fetching diary entries:', error.message)
+            return []
+        }
+
+        return data || []
+    } catch (err: any) {
+        console.error('Fatal error in getDailyDiaryEntries:', err?.message || err)
+        return []
     }
-
-    return data
 }
 
 export async function submitDiaryEntry(templateId: string, date: string, responses: any) {
@@ -115,9 +193,16 @@ export async function submitDiaryEntry(templateId: string, date: string, respons
             responses,
             status: 'Submitted',
             updated_at: new Date().toISOString()
+        }, {
+            onConflict: 'user_id, entry_date, template_id'
         })
 
-    if (error) return { error: error.message }
+    if (error) {
+        if (error.code === 'PGRST205') {
+            return { error: 'Database table missing. Please ensure migrations have been run.' }
+        }
+        return { error: error.message }
+    }
 
     revalidatePath('/diary')
     return { success: true }
@@ -130,26 +215,51 @@ export async function getDiaryComplianceOverview(date: string) {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('tenant_id')
+        .select('tenant_id, current_company_id')
         .eq('id', user.id)
         .single()
 
     if (!profile) return []
 
-    // Fetch all users in tenant and their entries for this date
-    const { data: profiles, error: pErr } = await supabase
+    const admin = createAdminClient()
+
+    // Fetch profiles in SAME company
+    let profilesQuery = admin
         .from('profiles')
         .select('id, first_name, last_name, current_company_id')
         .eq('tenant_id', profile.tenant_id)
         .eq('status', 'active')
 
-    const { data: entries, error: eErr } = await supabase
+    if (profile.current_company_id) {
+        profilesQuery = profilesQuery.eq('current_company_id', profile.current_company_id)
+    }
+
+    const { data: profiles, error: pErr } = await profilesQuery
+
+    // Fetch entries in SAME company
+    let entriesQuery = admin
         .from('diary_entries')
         .select('*')
         .eq('tenant_id', profile.tenant_id)
         .eq('entry_date', date)
 
-    if (pErr || eErr) return []
+    if (profile.current_company_id) {
+        entriesQuery = entriesQuery.eq('company_id', profile.current_company_id)
+    }
+
+    const { data: entries, error: eErr } = await entriesQuery
+
+    if (pErr || eErr) {
+        if (eErr?.code === 'PGRST205') {
+            console.warn('Diary entries table missing during compliance fetch. Please run migrations.')
+            return []
+        }
+        console.error('Compliance fetch error:', {
+            profiles: pErr ? { message: pErr.message, code: pErr.code } : null,
+            entries: eErr ? { message: eErr.message, code: eErr.code } : null
+        })
+        return []
+    }
 
     return profiles.map(p => ({
         ...p,

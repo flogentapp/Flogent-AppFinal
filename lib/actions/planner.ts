@@ -34,11 +34,9 @@ export async function getPlannerTasks() {
         `)
         .eq('tenant_id', profile.tenant_id)
 
-    // Apply security filters if not owner
-    if (!permissions.isOwner) {
-        if (profile.current_company_id) {
-            query = query.eq('company_id', profile.current_company_id)
-        }
+    // Apply security filters locally if target company is active
+    if (profile.current_company_id) {
+        query = query.eq('company_id', profile.current_company_id)
     }
 
     const { data, error } = await query.order('created_at', { ascending: false })

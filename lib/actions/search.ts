@@ -48,6 +48,20 @@ export async function smartSearch(query: string): Promise<SearchResult[]> {
     const dbResults: SearchResult[] = []
 
     try {
+        const { data: profile } = await supabase.from('profiles').select('current_company_id').single()
+        const activeCompanyId = profile?.current_company_id
+
+        let companiesQuery = supabase.from('companies').select('id, name, code').ilike('name', `%${query}%`)
+        let projectsQuery = supabase.from('projects').select('id, name, code').ilike('name', `%${query}%`)
+        let deptsQuery = supabase.from('departments').select('id, name').ilike('name', `%${query}%`)
+        let entriesQuery = supabase.from('time_entries').select('id, description, entry_date, hours, minutes, projects!inner(name, company_id)').ilike('description', `%${query}%`)
+
+        if (activeCompanyId) {
+            companiesQuery = companiesQuery.eq('id', activeCompanyId)
+            projectsQuery = projectsQuery.eq('company_id', activeCompanyId)
+            deptsQuery = deptsQuery.eq('company_id', activeCompanyId)
+        }
+
         const [
             { data: companies },
             { data: projects },
@@ -55,12 +69,16 @@ export async function smartSearch(query: string): Promise<SearchResult[]> {
             { data: departments },
             { data: timeEntries }
         ] = await Promise.all([
-            supabase.from('companies').select('id, name, code').ilike('name', `%${query}%`).limit(3),
-            supabase.from('projects').select('id, name, code').ilike('name', `%${query}%`).limit(3),
-            supabase.from('profiles').select('id, first_name, last_name, email').or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`).limit(3),
-            supabase.from('departments').select('id, name').ilike('name', `%${query}%`).limit(3),
-            supabase.from('time_entries').select('id, description, entry_date, hours, minutes, projects(name)').ilike('description', `%${query}%`).limit(5)
+            companiesQuery.limit(3),
+            projectsQuery.limit(3),
+            supabase.from('profiles').select('id, first_name, last_name, email, current_company_id').or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`).limit(3),
+            deptsQuery.limit(3),
+            entriesQuery.limit(5)
         ])
+
+        const filteredUsers = activeCompanyId
+            ? users?.filter(u => u.current_company_id === activeCompanyId) || []
+            : users || []
 
         if (companies) {
             companies.forEach(c => dbResults.push({
@@ -82,8 +100,8 @@ export async function smartSearch(query: string): Promise<SearchResult[]> {
                 metadata: { table: 'projects', id: p.id }
             }))
         }
-        if (users) {
-            users.forEach(u => dbResults.push({
+        if (filteredUsers) {
+            filteredUsers.forEach(u => dbResults.push({
                 type: 'record',
                 label: `${u.first_name} ${u.last_name}`,
                 description: `Team Member • ${u.email}`,

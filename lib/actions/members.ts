@@ -57,13 +57,23 @@ export async function getProjectMembers(projectId: string) {
 
 export async function getAvailableUsers(tenantId: string) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Get all active users in the company
-  const { data } = await supabase
+  if (!user) return []
+
+  // Get requester's active company context
+  const { data: profile } = await supabase.from('profiles').select('current_company_id').eq('id', user.id).single()
+
+  let query = supabase
     .from('profiles')
     .select('id, first_name, last_name, email')
     .eq('tenant_id', tenantId)
     .eq('status', 'active')
 
+  if (profile?.current_company_id) {
+    query = query.eq('current_company_id', profile.current_company_id)
+  }
+
+  const { data } = await query.order('first_name')
   return data || []
 }

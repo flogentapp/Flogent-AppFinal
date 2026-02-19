@@ -21,26 +21,32 @@ export default async function CompaniesPage() {
     let projects: any[] = []
 
     if (tenantId) {
-        // Fetch all Org data for management
+        // Fetch data via regular supabase client (RLS active)
         const [
             { data: companiesData },
             { data: deptsData },
             { data: projectsData }
         ] = await Promise.all([
-            supabase.from('companies').select('*').eq('tenant_id', tenantId).order('name'),
-            supabase.from('departments').select('*').eq('tenant_id', tenantId).order('name'),
-            supabase.from('projects').select('*').eq('tenant_id', tenantId).order('name')
+            supabase.from('companies').select('*').order('name'),
+            supabase.from('departments').select('*').order('name'),
+            supabase.from('projects').select('*').order('name')
         ])
 
+        // RLS already filters these to what the user "CAN SEE" per role.
+        // But for management, we might want to filter even further to what they "CAN MANAGE".
         companies = companiesData || []
         departments = deptsData || []
         projects = projectsData || []
 
-        // RBAC filtering for non-owners/CEOs
-        if (!permissions.isOwner && !permissions.isCEO) {
-            // Filter companies they can manage
-            // ... (keeping existing logic or simplifying for context)
-            // For unified management, we assume they see what they can manage.
+        if (!permissions.isOwner && !permissions.isCEO && !permissions.isAdmin) {
+            // If they are only a Dept Head or Project Leader, they should only see their own scope
+            const managedCompIds = permissions.managedCompanyIds
+            const managedDeptIds = permissions.managedDepartmentIds
+            const managedProjIds = permissions.managedProjectIds
+
+            companies = companies.filter(c => managedCompIds.includes(c.id))
+            departments = departments.filter(d => managedDeptIds.includes(d.id) || managedCompIds.includes(d.company_id))
+            projects = projects.filter(p => managedProjIds.includes(p.id) || managedCompIds.includes(p.company_id))
         }
     }
 

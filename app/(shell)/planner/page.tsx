@@ -42,8 +42,8 @@ export default async function PlannerPage() {
     // 2. Fetch Data in Parallel via Admin
     const [
         tasks,
-        { data: projects },
-        { data: users }
+        { data: allProjects },
+        { data: allUsers }
     ] = await Promise.all([
         getPlannerTasks(),
         admin
@@ -60,10 +60,31 @@ export default async function PlannerPage() {
             .order('first_name')
     ])
 
-    // Filter projects by company if one is active
-    const filteredProjects = activeCompanyId
-        ? projects?.filter(p => p.company_id === activeCompanyId)
-        : projects
+    // --- STRICT ISOLATION FILTERING ---
+    let filteredProjects = allProjects || []
+    let filteredUsers = allUsers || []
+
+    if (!permissions.isOwner) {
+        // Filter projects: Must be in an accessible company OR specifically assigned
+        filteredProjects = filteredProjects.filter(p =>
+            permissions.managedCompanyIds.includes(p.company_id || '') ||
+            permissions.accessibleCompanyIds.includes(p.company_id || '') ||
+            permissions.allMemberProjIds.includes(p.id)
+        )
+
+        // If a company is active in context, restrict even further to THAT company
+        if (activeCompanyId) {
+            filteredProjects = filteredProjects.filter(p => p.company_id === activeCompanyId)
+        }
+
+        // Filter users: Only show users if they share a company/project? 
+        // For now, if not owner, only show users in the same company as the current user
+        if (activeCompanyId) {
+            // We'll need a way to know which company users belong to. 
+            // Profiles has current_company_id, but it's not a list of memberships.
+            // For now, we'll keep it to the tenant level but filtering projects is the primary goal.
+        }
+    }
 
     return (
         <div className="h-[calc(100vh-4rem)] flex flex-col">
@@ -72,7 +93,7 @@ export default async function PlannerPage() {
                     <PlannerClient
                         tasks={tasks || []}
                         projects={filteredProjects || []}
-                        users={users || []}
+                        users={filteredUsers}
                         currentUser={user}
                     />
                 </div>

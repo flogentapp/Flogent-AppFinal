@@ -16,17 +16,15 @@ const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(url, key);
 
 async function listTables() {
-    console.log('Listing all tables in public schema...');
-    // We can't use select * from information_schema via standard Supabase REST unless RPC is allowed.
-    // But we can try to query common tables we know exist to see if they work.
     const tables = ['profiles', 'tenants', 'companies', 'projects', 'diary_templates', 'diary_entries', 'planner_tasks'];
 
     for (const table of tables) {
-        const { error } = await supabase.from(table).select('count', { count: 'exact', head: true });
+        // Try a simple select 1 or similar
+        const { error } = await supabase.from(table).select('id').limit(1);
         if (error) {
-            console.log(`Table [${table}]: MISSING or ERROR (${error.message})`);
+            console.log(`Table [${table}]: ERROR (${error.message})`);
         } else {
-            console.log(`Table [${table}]: EXISTS`);
+            console.log(`Table [${table}]: OK`);
         }
     }
 }

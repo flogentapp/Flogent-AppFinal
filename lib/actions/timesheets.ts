@@ -68,16 +68,36 @@ export async function getPendingApprovals() {
   const permissions = await getUserPermissions()
   if (!permissions.canManageAny) return []
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('tenant_id, current_company_id').eq('id', user.id).single()
   if (!profile) return []
 
-  // DEV FOLDER: Fetch all submitted entries for the entire tenant
-  const { data } = await adminClient
+  // RESOLVE PERMISSIONS FOR FILTERING
+  const activeCompanyId = profile?.current_company_id
+
+  // Create a query that scopes to what the user is ALLOWED to see
+  let query = adminClient
     .from('time_entries')
-    .select('*, profiles:user_id(first_name, last_name, email), projects(*, departments(name))')
+    .select('*, profiles:user_id(first_name, last_name, email), projects!inner(*, departments(name))')
     .eq('tenant_id', profile.tenant_id)
     .eq('status', 'submitted')
-    .order('entry_date', { ascending: false })
+
+  if (permissions.isOwner) {
+    // Owner sees EVERYTHING in the tenant
+  } else {
+    if (permissions.isCEO) {
+      // CEO sees everything in ALL their MANAGED companies
+      query = query.in('projects.company_id', permissions.managedCompanyIds)
+    } else if (permissions.isDepartmentHead) {
+      query = query.in('projects.department_id', permissions.managedDepartmentIds)
+    } else if (permissions.isProjectLeader) {
+      query = query.in('project_id', permissions.managedProjectIds)
+    } else {
+      // Regular user should see 0 pending approvals for others
+      query = query.eq('id', '00000000-0000-0000-0000-000000000000')
+    }
+  }
+
+  const { data } = await query.order('entry_date', { ascending: false })
 
   return data?.map(d => ({
     ...d,
@@ -124,15 +144,32 @@ export async function getReportData() {
   const permissions = await getUserPermissions()
   if (!permissions.canManageAny) return []
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('tenant_id, current_company_id').eq('id', user.id).single()
   if (!profile) return []
 
-  // DEV FOLDER: Fetch all tenant entries for reporting
-  const { data } = await adminClient
+  // RESOLVE PERMISSIONS FOR FILTERING
+  const activeCompanyId = profile?.current_company_id
+
+  let query = adminClient
     .from('time_entries')
-    .select('*, profiles:user_id(first_name, last_name), projects(*, departments(name))')
+    .select('*, profiles:user_id(first_name, last_name), projects!inner(*, departments(name))')
     .eq('tenant_id', profile.tenant_id)
-    .order('entry_date', { ascending: false })
+
+  if (permissions.isOwner) {
+    // Owner sees everything in the tenant
+  } else {
+    if (permissions.isCEO) {
+      query = query.in('projects.company_id', permissions.managedCompanyIds)
+    } else if (permissions.isDepartmentHead) {
+      query = query.in('projects.department_id', permissions.managedDepartmentIds)
+    } else if (permissions.isProjectLeader) {
+      query = query.in('project_id', permissions.managedProjectIds)
+    } else {
+      query = query.eq('user_id', user.id)
+    }
+  }
+
+  const { data } = await query.order('entry_date', { ascending: false })
 
   return data?.map(d => ({
     ...d,

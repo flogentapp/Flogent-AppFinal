@@ -29,63 +29,32 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     let activeSelectedCompany: any = null
 
     if (activeTenantId) {
+        // Use regular supabase client to ENFORCE RLS
         const [
             { data: companiesData },
             { data: deptsData },
             { data: projectsData }
         ] = await Promise.all([
-            adminClient.from('companies').select('id, name, tenant_id').eq('tenant_id', activeTenantId).order('name'),
-            adminClient.from('departments').select('id, name, company_id').eq('tenant_id', activeTenantId).order('name'),
-            adminClient.from('projects').select('id, name, department_id, company_id').eq('tenant_id', activeTenantId).order('name')
+            supabase.from('companies').select('id, name, tenant_id').order('name'),
+            supabase.from('departments').select('id, name, company_id').order('name'),
+            supabase.from('projects').select('id, name, department_id, company_id').order('name')
         ])
 
         const allCompanies = companiesData || []
         const allDepts = deptsData || []
         const allProjs = projectsData || []
 
-        // 1. Resolve Accessible Company IDs
-        const toegestaneCompanyIds = new Set<string>(permissions.accessibleCompanyIds || [])
-        const allMemberProjIds = permissions.allMemberProjIds || []
-
-        // CEO of a company manages that company
-        permissions.managedCompanyIds.forEach(id => toegestaneCompanyIds.add(id))
-
-        // Project members can see their company
-        allProjs.forEach(p => {
-            if (allMemberProjIds.includes(p.id)) {
-                toegestaneCompanyIds.add(p.company_id)
-            }
-        })
-
-        if (permissions.isOwner) {
-            companies = allCompanies
-        } else {
-            companies = allCompanies.filter(c => toegestaneCompanyIds.has(c.id))
-        }
+        // With new RLS, allCompanies only contains companies the user is ALLOWED to see.
+        companies = allCompanies
 
         // 2. Resolve Active Company Context
         // Priority: Profile -> Metadata -> First Available Company
         const currentCompId = profile?.current_company_id || user.user_metadata?.current_company_id || (companies.length > 0 ? companies[0].id : null)
 
-        // 3. Filter Departments & Projects strictly
+        // 3. Filter Departments & Projects strictly by Active Company context
+        // Even if RLS allows seeing more, the UI should only show the active context
         departments = allDepts.filter(d => d.company_id === currentCompId)
-
-        projects = allProjs.filter(p => {
-            // Must belong to active company
-            if (p.company_id !== currentCompId) return false
-
-            // Visibility rules:
-            if (permissions.isOwner) return true
-
-            // CEO of this company sees all its projects
-            if (permissions.managedCompanyIds.includes(p.company_id)) return true
-
-            // Dept Head of this department sees all its projects
-            if (p.department_id && permissions.managedDepartmentIds.includes(p.department_id)) return true
-
-            // Otherwise, must be a member
-            return allMemberProjIds.includes(p.id)
-        })
+        projects = allProjs.filter(p => p.company_id === currentCompId)
 
         // 4. Set final context for UI
         activeSelectedCompany = companies.find(c => c.id === currentCompId) || companies[0]
