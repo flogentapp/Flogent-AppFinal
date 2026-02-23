@@ -420,23 +420,21 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
                                                 <td className="px-4 py-2 align-top">
                                                     <div className="relative group/note max-w-lg">
                                                         <p className="text-sm font-medium text-slate-500 line-clamp-2 italic leading-relaxed">
-                                                            {task.notes?.[0] ? `: ${task.notes[0].text}` : 'No notes.'}
+                                                            {task.notes?.[0] ? `${task.notes[0].date}: ${task.notes[0].text}` : 'No notes.'}
                                                         </p>
 
                                                         {/* HOVER PREVIEW BOX */}
                                                         {task.notes?.length > 0 && (
-                                                            <div className="absolute top-0 left-0 z-50 w-[400px] p-6 bg-white border border-slate-200 rounded-[24px] shadow-2xl opacity-0 translate-y-2 pointer-events-none group-hover/note:opacity-100 group-hover/note:translate-y-4 transition-all duration-200">
+                                                            <div className="absolute top-0 left-0 z-50 w-[450px] p-6 bg-white border border-slate-200 rounded-[32px] shadow-2xl opacity-0 translate-y-2 pointer-events-none group-hover/note:opacity-100 group-hover/note:translate-y-4 transition-all duration-200">
                                                                 <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
                                                                     <MessageSquare className="w-4 h-4 text-indigo-600" />
-                                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Latest Updates</span>
+                                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Note History</span>
                                                                 </div>
-                                                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                                                     {task.notes.map((n: any, i: number) => (
-                                                                        <div key={i} className="space-y-1">
-                                                                            <div className="text-[9px] font-black text-indigo-500 uppercase">{n.date}</div>
-                                                                            <div className="text-xs font-medium text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                                                {n.text}
-                                                                            </div>
+                                                                        <div key={i} className="text-xs leading-relaxed text-slate-600 font-medium border-l-2 border-indigo-50 pl-3 py-1">
+                                                                            <span className="font-black text-indigo-600 mr-2 shrink-0">{n.date}:</span>
+                                                                            <span>{n.text}</span>
                                                                         </div>
                                                                     ))}
                                                                 </div>
@@ -891,14 +889,14 @@ function PlannerModals({
                             </form>
 
                             <div className="space-y-4 pt-4 relative">
-                                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-50 -z-10" />
                                 {isEditing ? (
-                                    editedNotes.map((note: any, idx: number) => (
-                                        <div key={idx} className="flex gap-4 group animate-in fade-in slide-in-from-left-2" style={{ animationDelay: `${idx * 50}ms` }}>
-                                            <div className="w-8 h-8 rounded-full bg-white border-2 border-indigo-200 flex items-center justify-center text-[8px] font-black text-indigo-600 shrink-0 shadow-sm">
-                                                {note.date}
-                                            </div>
-                                            <div className="flex-1">
+                                    <div className="space-y-6">
+                                        {editedNotes.map((note: any, idx: number) => (
+                                            <div key={idx} className="space-y-2 group animate-in fade-in slide-in-from-left-2">
+                                                <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                    {note.date}
+                                                </div>
                                                 <Textarea
                                                     value={note.text}
                                                     onChange={(e) => {
@@ -906,22 +904,20 @@ function PlannerModals({
                                                         newNotes[idx] = { ...newNotes[idx], text: e.target.value }
                                                         setEditedNotes(newNotes)
                                                     }}
-                                                    className="min-h-[80px] text-sm font-medium text-slate-600 bg-white border-indigo-100 focus:ring-indigo-500 rounded-2xl p-4 shadow-sm"
+                                                    className="min-h-[60px] text-sm font-medium text-slate-700 bg-white border-slate-200 focus:ring-indigo-500 rounded-xl"
                                                 />
                                             </div>
-                                        </div>
-                                    ))
+                                        ))}
+                                    </div>
                                 ) : selectedTask.notes?.length > 0 ? (
-                                    selectedTask.notes.map((note: any, idx: number) => (
-                                        <div key={idx} className="flex gap-4 group">
-                                            <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center text-[8px] font-black text-slate-400 shrink-0 group-hover:border-indigo-200 transition-colors">
-                                                {note.date}
+                                    <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 space-y-3">
+                                        {selectedTask.notes.map((note: any, idx: number) => (
+                                            <div key={idx} className="text-sm leading-relaxed text-slate-700 font-medium">
+                                                <span className="font-black text-indigo-600 mr-2 shrink-0">{note.date}:</span>
+                                                <span>{note.text}</span>
                                             </div>
-                                            <div className="flex-1 bg-white border border-slate-100 p-4 rounded-2xl shadow-sm text-sm font-medium text-slate-600 leading-relaxed group-hover:border-indigo-100 group-hover:shadow-md transition-all">
-                                                {note.text}
-                                            </div>
-                                        </div>
-                                    ))
+                                        ))}
+                                    </div>
                                 ) : (
                                     <div className="text-center py-12">
                                         <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
