@@ -41,6 +41,7 @@ export function UserRoleModal({ isOpen, onClose, user, currentCompanyId, roles =
 
     const availableRoles = [
         { role: 'CEO', description: 'Full company access and management' },
+        { role: 'Admin', description: 'Administrative access across the company' },
         { role: 'DepartmentHead', description: 'Manage a department and its members' },
         { role: 'ProjectLeader', description: 'Lead and manage specific projects' },
         { role: 'User', description: 'Standard member access' },
