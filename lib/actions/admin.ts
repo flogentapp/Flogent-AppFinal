@@ -403,7 +403,7 @@ export async function assignUserToCompany(userId: string, companyId: string) {
 // 15. Global Role Management
 export async function assignUserRole(
   userId: string,
-  role: 'CEO' | 'Admin' | 'User' | 'DepartmentHead',
+  role: 'CEO' | 'DepartmentHead' | 'ProjectLeader' | 'User',
   scopeType: 'company' | 'department',
   scopeId: string
 ) {

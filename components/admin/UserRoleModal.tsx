@@ -39,7 +39,12 @@ export function UserRoleModal({ isOpen, onClose, user, currentCompanyId, roles =
         }
     }
 
-    const availableRoles = ['CEO', 'Admin', 'User']
+    const availableRoles = [
+        { role: 'CEO', description: 'Full company access and management' },
+        { role: 'DepartmentHead', description: 'Manage a department and its members' },
+        { role: 'ProjectLeader', description: 'Lead and manage specific projects' },
+        { role: 'User', description: 'Standard member access' },
+    ]
     const userRoleNames = roles.map((r: any) => r.role)
 
     return (
@@ -83,7 +88,7 @@ export function UserRoleModal({ isOpen, onClose, user, currentCompanyId, roles =
                 <div className="space-y-4 pt-4 border-t border-slate-100">
                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Assign New Priority Role</label>
                     <div className="grid grid-cols-1 gap-3">
-                        {availableRoles.filter(role => !userRoleNames.includes(role)).map((role) => (
+                        {availableRoles.filter(({ role }) => !userRoleNames.includes(role)).map(({ role, description }) => (
                             <button
                                 key={role}
                                 onClick={() => handleAssign(role)}
@@ -96,7 +101,7 @@ export function UserRoleModal({ isOpen, onClose, user, currentCompanyId, roles =
                                     </div>
                                     <div>
                                         <div className="font-black text-slate-900 tracking-tight">{role}</div>
-                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5 group-hover:text-indigo-400">Grant full access as {role}</div>
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5 group-hover:text-indigo-400">{description}</div>
                                     </div>
                                 </div>
                                 <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">

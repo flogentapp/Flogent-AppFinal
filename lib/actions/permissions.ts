@@ -94,9 +94,9 @@ export async function getUserPermissions(): Promise<UserPermissions> {
     }
 
     // Regular RBAC
-    const managedCompanyIds = roles?.filter(r => (r.role === 'CEO' || r.role === 'Admin') && r.scope_type === 'company').map(r => r.scope_id) || []
+    const managedCompanyIds = roles?.filter(r => r.role === 'CEO' && r.scope_type === 'company').map(r => r.scope_id) || []
     const isCEO = roles?.some(r => r.role === 'CEO') || false
-    const isAdmin = roles?.some(r => r.role === 'Admin') || false
+    const isAdmin = false // 'Admin' is not a valid role_type enum value in the DB
     const finalManagedDeptIds = roles?.filter(r => r.role === 'DepartmentHead').map(r => r.scope_id) || []
     const isDepartmentHead = finalManagedDeptIds.length > 0
     const finalManagedProjIds = memberships?.filter(m => m.role === 'ProjectLeader').map(m => m.project_id) || []
