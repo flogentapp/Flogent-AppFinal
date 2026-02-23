@@ -36,6 +36,7 @@ export async function getPlannerTasks() {
 
     // Fetches all tasks in the tenant. 
     // The page component handles further scoping of projects/users for non-owners.
+
     const { data, error } = await query.order('created_at', { ascending: false })
     if (error) {
         console.error('Fetch Tasks Error:', JSON.stringify(error, null, 2))

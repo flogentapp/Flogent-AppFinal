@@ -65,9 +65,12 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
     // ... rest of the state ...
     const [processingId, setProcessingId] = useState<string | null>(null)
 
-    // Filtering logic
+    // Filtering & Sorting logic
     const filteredTasks = useMemo(() => {
-        return tasks.filter((t: any) => {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
+        const filtered = tasks.filter((t: any) => {
             const matchesView = view === 'active'
                 ? (t.status !== 'Completed' && t.status !== 'Deleted')
                 : (t.status === 'Completed' || t.status === 'Deleted')
@@ -77,6 +80,28 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
             const matchesPeople = selectedPeople.length === 0 || selectedPeople.includes(t.assigned_to_id || 'unassigned')
             const matchesProject = selectedProjects.length === 0 || selectedProjects.includes(t.project_id)
             return matchesView && matchesSearch && matchesPeople && matchesProject
+        })
+
+        return filtered.sort((a: any, b: any) => {
+            const isOverdueA = a.start_by && new Date(a.start_by) < today && a.status !== 'Completed'
+            const isOverdueB = b.start_by && new Date(b.start_by) < today && b.status !== 'Completed'
+
+            const getRank = (t: any, isOverdue: boolean) => {
+                if (isOverdue) return 0
+                if (t.status === 'Waiting') return 1
+                if (t.status === 'New') return 2
+                return 3
+            }
+
+            const rankA = getRank(a, isOverdueA)
+            const rankB = getRank(b, isOverdueB)
+
+            if (rankA !== rankB) return rankA - rankB
+
+            // Secondary sort by date
+            const dateA = a.start_by ? new Date(a.start_by).getTime() : Infinity
+            const dateB = b.start_by ? new Date(b.start_by).getTime() : Infinity
+            return dateA - dateB
         })
     }, [tasks, view, searchQuery, selectedPeople, selectedProjects])
 
@@ -321,14 +346,26 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
                                             </button>
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className={cn(
-                                                        "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
-                                                        task.status === 'New' ? "bg-blue-50 text-blue-600" :
-                                                            task.status === 'Waiting' ? "bg-amber-50 text-amber-600" :
-                                                                "bg-emerald-50 text-emerald-600"
-                                                    )}>
-                                                        {task.status}
-                                                    </span>
+                                                    {(() => {
+                                                        const isOverdue = task.start_by && new Date(task.start_by) < new Date(new Date().setHours(0, 0, 0, 0)) && task.status !== 'Completed'
+                                                        if (isOverdue) {
+                                                            return (
+                                                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-600 text-white shadow-sm">
+                                                                    Overdue
+                                                                </span>
+                                                            )
+                                                        }
+                                                        return (
+                                                            <span className={cn(
+                                                                "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                                                                task.status === 'New' ? "bg-blue-50 text-blue-600" :
+                                                                    task.status === 'Waiting' ? "bg-amber-50 text-amber-600" :
+                                                                        "bg-emerald-50 text-emerald-600"
+                                                            )}>
+                                                                {task.status === 'New' ? 'Busy' : task.status}
+                                                            </span>
+                                                        )
+                                                    })()}
                                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{task.project?.name}</span>
                                                     <span className="text-[10px] font-black text-slate-400">|</span>
                                                     <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
@@ -404,14 +441,26 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-2 align-top">
-                                                    <span className={cn(
-                                                        "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border",
-                                                        task.status === 'New' ? "bg-blue-50 text-blue-600 border-blue-100" :
-                                                            task.status === 'Waiting' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                                                                "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                                    )}>
-                                                        {task.status === 'New' ? 'Busy' : task.status}
-                                                    </span>
+                                                    {(() => {
+                                                        const isOverdue = task.start_by && new Date(task.start_by) < new Date(new Date().setHours(0, 0, 0, 0)) && task.status !== 'Completed'
+                                                        if (isOverdue) {
+                                                            return (
+                                                                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border bg-red-600 text-white border-red-700 shadow-sm">
+                                                                    Overdue
+                                                                </span>
+                                                            )
+                                                        }
+                                                        return (
+                                                            <span className={cn(
+                                                                "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border",
+                                                                task.status === 'New' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                                                    task.status === 'Waiting' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                                                        "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                                            )}>
+                                                                {task.status === 'New' ? 'Busy' : task.status}
+                                                            </span>
+                                                        )
+                                                    })()}
                                                 </td>
                                                 <td className="px-4 py-2 align-top">
                                                     <div className="flex flex-col gap-0.5">
@@ -419,7 +468,7 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
                                                             {task.start_by ? format(new Date(task.start_by), 'MMM d, yyyy') : '-'}
                                                         </span>
                                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">
-                                                            {task.start_by && new Date(task.start_by) < new Date() && task.status !== 'Completed' ? 'Overdue' : 'Planned'}
+                                                            Planned
                                                         </span>
                                                     </div>
                                                 </td>
