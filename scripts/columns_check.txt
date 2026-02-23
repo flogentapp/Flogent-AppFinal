@@ -1,0 +1,3 @@
+Table: company_members | Columns: 
+Table: project_members | Columns: 
+Table: profiles | Columns: id,tenant_id,email,first_name,last_name,display_name,avatar_url,status,created_at,created_by,updated_at,updated_by,deactivated_at,deactivated_by,current_company_id,role,department_id

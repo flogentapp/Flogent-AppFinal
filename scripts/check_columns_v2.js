@@ -15,13 +15,14 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(url, key);
 
-async function checkRoles() {
-    const id = 'c9ef9699-3620-4d04-bef3-e4732f038998';
-    const { data: roles } = await supabase.from('user_role_assignments').select('*').eq('user_id', id);
-    console.log('Jahnerik Roles:', roles);
-
-    const { data: allRoles } = await supabase.from('user_role_assignments').select('*').limit(5);
-    console.log('Sample Roles:', allRoles);
+async function checkColumns() {
+    const tables = ['company_members', 'project_members', 'profiles'];
+    let out = '';
+    for (const table of tables) {
+        const { data } = await supabase.from(table).select('*').limit(1);
+        out += `Table: ${table} | Columns: ${Object.keys(data?.[0] || {})}\n`;
+    }
+    fs.writeFileSync('scripts/columns_check.txt', out);
 }
 
-checkRoles();
+checkColumns();

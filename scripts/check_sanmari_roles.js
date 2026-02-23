@@ -15,13 +15,10 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(url, key);
 
-async function checkRoles() {
-    const id = 'c9ef9699-3620-4d04-bef3-e4732f038998';
+async function checkSanMari() {
+    const id = '7e4320c8-cb12-4997-b52a-25cfd22f921a'; // From find_jahnerik.js results
     const { data: roles } = await supabase.from('user_role_assignments').select('*').eq('user_id', id);
-    console.log('Jahnerik Roles:', roles);
-
-    const { data: allRoles } = await supabase.from('user_role_assignments').select('*').limit(5);
-    console.log('Sample Roles:', allRoles);
+    console.log('San-Mari Roles:', JSON.stringify(roles, null, 2));
 }
 
-checkRoles();
+checkSanMari();

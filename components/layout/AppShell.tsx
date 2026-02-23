@@ -14,14 +14,14 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('tenant_id, first_name, last_name, current_company_id, current_department_id, current_project_id')
+        .select('tenant_id, first_name, last_name, current_company_id, department_id')
         .eq('id', user.id)
         .single()
 
     const activeTenantId = profile?.tenant_id || user.user_metadata?.tenant_id
     const activeCompanyId = profile?.current_company_id || user.user_metadata?.current_company_id
-    const activeDeptId = profile?.current_department_id || user.user_metadata?.current_department_id
-    const activeProjId = profile?.current_project_id || user.user_metadata?.current_project_id
+    const activeDeptId = profile?.department_id || user.user_metadata?.department_id
+    const activeProjId: string | null = null
 
     let companies: any[] = []
     let departments: any[] = []

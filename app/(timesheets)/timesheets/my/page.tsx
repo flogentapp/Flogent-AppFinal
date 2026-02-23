@@ -9,7 +9,7 @@ export default async function TimesheetsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('tenant_id, current_company_id, current_department_id, current_project_id')
+    .select('tenant_id, current_company_id, department_id')
     .eq('id', user.id)
     .single()
 
@@ -38,10 +38,8 @@ export default async function TimesheetsPage() {
     .eq('tenant_id', activeTenantId)
     .eq('status', 'active')
 
-  if (profile?.current_project_id) {
-    projectQuery = projectQuery.eq('id', profile.current_project_id)
-  } else if (profile?.current_department_id) {
-    projectQuery = projectQuery.eq('department_id', profile.current_department_id)
+  if (profile?.department_id) {
+    projectQuery = projectQuery.eq('department_id', profile.department_id)
   } else if (profile?.current_company_id) {
     projectQuery = projectQuery.eq('company_id', profile.current_company_id)
   }

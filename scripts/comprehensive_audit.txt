@@ -1,0 +1,36 @@
+Table: profiles | Count: 0 | Error: {"code":"42703","details":null,"hint":null,"message":"column profiles.user_id does not exist"}
+Table: company_members | Count: 0 | Error: {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.companies'","message":"Could not find the table 'public.company_members' in the schema cache"}
+Table: project_members | Count: 0 | Error: {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.project_memberships'","message":"Could not find the table 'public.project_members' in the schema cache"}
+Table: user_role_assignments | Count: 3 | Error: None
+Data: {
+  "id": "f194f54e-e51e-4413-a7b2-322ef6e90b15",
+  "tenant_id": "a7f82a79-7340-4a9d-83a4-f7de59746150",
+  "user_id": "c9ef9699-3620-4d04-bef3-e4732f038998",
+  "role": "DepartmentHead",
+  "scope_type": "department",
+  "scope_id": "481a054d-ba51-4c6e-ad05-7380d2309e65",
+  "created_at": "2026-02-23T09:04:06.149831+00:00",
+  "created_by": null,
+  "updated_at": "2026-02-23T09:04:06.149831+00:00",
+  "updated_by": null
+}
+
+Table: planner_tasks | Count: 12 | Error: None
+Data: {
+  "id": "bee828f9-b025-4dff-b82f-f4891de89a73",
+  "tenant_id": "a7f82a79-7340-4a9d-83a4-f7de59746150",
+  "company_id": "682c73c7-01a4-4b08-85d7-d6dab6ea2555",
+  "project_id": "38134216-b6f6-4390-9b75-7d649866c431",
+  "title": "\tClose out report en Completion cert as ons nog nie antwoorde van Eric af gekry het einde feb nie.",
+  "assigned_to_id": "c9ef9699-3620-4d04-bef3-e4732f038998",
+  "status": "New",
+  "start_by": "2026-02-25",
+  "notes": [],
+  "created_by": "7e4320c8-cb12-4997-b52a-25cfd22f921a",
+  "created_at": "2026-02-18T13:35:03.503288+00:00",
+  "completion_date": null,
+  "marked_done_by_id": null,
+  "deleted_at": null,
+  "deleted_by_id": null
+}
+

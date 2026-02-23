@@ -21,8 +21,8 @@ export default async function PlannerPage() {
     // 1. Get Profile via Admin
     const { data: profile } = await admin
         .from('profiles')
-        .select('tenant_id, current_company_id, current_department_id')
-        .eq('id', user.id)
+        .select('tenant_id, current_company_id, department_id')
+        .eq('id', user!.id)
         .single()
 
     // --- ENHANCED TENANT RESOLUTION (Matches Header Logic) ---

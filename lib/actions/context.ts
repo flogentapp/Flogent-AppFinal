@@ -16,18 +16,15 @@ export async function switchContext(type: 'company' | 'department' | 'project', 
 
     if (type === 'company') {
         updateData.current_company_id = id
-        updateData.current_department_id = null
-        updateData.current_project_id = null
+        updateData.department_id = null
         metadataUpdate.current_company_id = id
         metadataUpdate.current_department_id = null
         metadataUpdate.current_project_id = null
     } else if (type === 'department') {
-        updateData.current_department_id = id
-        updateData.current_project_id = null
+        updateData.department_id = id
         metadataUpdate.current_department_id = id
         metadataUpdate.current_project_id = null
     } else if (type === 'project') {
-        updateData.current_project_id = id
         metadataUpdate.current_project_id = id
     }
 
