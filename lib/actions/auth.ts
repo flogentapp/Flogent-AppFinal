@@ -55,3 +55,41 @@ export async function logout() {
     await supabase.auth.signOut()
     redirect('/login')
 }
+
+export async function forgotPassword(prevState: any, formData: FormData) {
+    const email = formData.get('email') as string
+    const supabase = await createClient()
+
+    // Build base URL: prefer explicit SITE_URL, then Vercel auto-URL, then localhost
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+        || 'http://localhost:3000'
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+    })
+
+    if (error) {
+        return { message: error.message }
+    }
+
+    return { success: true }
+}
+
+export async function resetPassword(prevState: any, formData: FormData) {
+    const password = formData.get('password') as string
+    const confirm = formData.get('confirm') as string
+
+    if (password !== confirm) {
+        return { message: 'Passwords do not match' }
+    }
+
+    const supabase = await createClient()
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+        return { message: error.message }
+    }
+
+    redirect('/app')
+}
