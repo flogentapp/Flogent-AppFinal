@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import {
     Clock,
     CheckCircle2,
@@ -44,10 +44,34 @@ import { useUI } from '@/components/providers/UIProvider'
 export function PlannerClient({ tasks: initialTasks, projects, users, currentUser }: any) {
     const { activeDropdown, setActiveDropdown } = useUI()
     const [tasks, setTasks] = useState(initialTasks)
-    const [view, setView] = useState<'active' | 'completed'>('active')
+    const [view, setView] = useState<'active' | 'completed'>(() => {
+        if (typeof window !== 'undefined') {
+            return (localStorage.getItem('planner-view') as any) || 'active'
+        }
+        return 'active'
+    })
     const [searchQuery, setSearchQuery] = useState('')
-    const [selectedPeople, setSelectedPeople] = useState<string[]>([])
-    const [selectedProjects, setSelectedProjects] = useState<string[]>([])
+    const [selectedPeople, setSelectedPeople] = useState<string[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('planner-people')
+            return saved ? JSON.parse(saved) : []
+        }
+        return []
+    })
+    const [selectedProjects, setSelectedProjects] = useState<string[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('planner-projects')
+            return saved ? JSON.parse(saved) : []
+        }
+        return []
+    })
+
+    // Sync filters to localStorage
+    useEffect(() => {
+        localStorage.setItem('planner-view', view)
+        localStorage.setItem('planner-people', JSON.stringify(selectedPeople))
+        localStorage.setItem('planner-projects', JSON.stringify(selectedProjects))
+    }, [view, selectedPeople, selectedProjects])
 
     const peopleRef = useRef<HTMLDivElement>(null)
     const projectRef = useRef<HTMLDivElement>(null)
