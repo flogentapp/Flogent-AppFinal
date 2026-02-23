@@ -87,9 +87,13 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
             const isOverdueB = b.start_by && new Date(b.start_by) < today && b.status !== 'Completed'
 
             const getRank = (t: any, isOverdue: boolean) => {
-                if (isOverdue) return 0
-                if (t.status === 'Waiting') return 1
-                if (t.status === 'New') return 2
+                // Priority 1: New or legacy 'Busy' tasks
+                if (t.status === 'New' || t.status === 'Busy') return 0
+                // Priority 2: Overdue tasks
+                if (isOverdue) return 1
+                // Priority 3: Waiting tasks
+                if (t.status === 'Waiting') return 2
+                // Others
                 return 3
             }
 
@@ -98,10 +102,10 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
 
             if (rankA !== rankB) return rankA - rankB
 
-            // Secondary sort by date
-            const dateA = a.start_by ? new Date(a.start_by).getTime() : Infinity
-            const dateB = b.start_by ? new Date(b.start_by).getTime() : Infinity
-            return dateA - dateB
+            // Secondary sort: Within the same rank, show newest created first
+            const dateA = new Date(a.created_at || 0).getTime()
+            const dateB = new Date(b.created_at || 0).getTime()
+            return dateB - dateA
         })
     }, [tasks, view, searchQuery, selectedPeople, selectedProjects])
 
@@ -362,7 +366,7 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
                                                                     task.status === 'Waiting' ? "bg-amber-50 text-amber-600" :
                                                                         "bg-emerald-50 text-emerald-600"
                                                             )}>
-                                                                {task.status === 'New' ? 'Busy' : task.status}
+                                                                {(task.status === 'New' || task.status === 'Busy') ? 'New' : task.status}
                                                             </span>
                                                         )
                                                     })()}
@@ -457,7 +461,7 @@ export function PlannerClient({ tasks: initialTasks, projects, users, currentUse
                                                                     task.status === 'Waiting' ? "bg-amber-50 text-amber-600 border-amber-100" :
                                                                         "bg-emerald-50 text-emerald-600 border-emerald-100"
                                                             )}>
-                                                                {task.status === 'New' ? 'Busy' : task.status}
+                                                                {(task.status === 'New' || task.status === 'Busy') ? 'New' : task.status}
                                                             </span>
                                                         )
                                                     })()}
@@ -614,6 +618,54 @@ function PlannerModals({
     const [submitting, setSubmitting] = useState(false)
     const [noteText, setNoteText] = useState('')
     const [waitMode, setWaitMode] = useState<'days' | 'calendar'>('days')
+    const [isEditing, setIsEditing] = useState(false)
+    const [editedTitle, setEditedTitle] = useState('')
+    const [editedAssignedTo, setEditedAssignedTo] = useState('')
+    const [editedNotes, setEditedNotes] = useState<any[]>([])
+
+    // Reset editing state when modal closes
+    React.useEffect(() => {
+        if (!activeModal) setIsEditing(false)
+    }, [activeModal])
+
+    // Initialize edit fields when task is selected or edit mode toggled
+    const startEditing = () => {
+        setEditedTitle(selectedTask.title)
+        setEditedAssignedTo(selectedTask.assigned_to_id || '')
+        setEditedNotes([...(selectedTask.notes || [])])
+        setIsEditing(true)
+    }
+
+    const cancelEditing = () => {
+        setIsEditing(false)
+    }
+
+    const handleSaveEdits = async () => {
+        setSubmitting(true)
+        const res = await updatePlannerTask(selectedTask.id, {
+            title: editedTitle,
+            assigned_to_id: editedAssignedTo || null,
+            notes: editedNotes
+        })
+        setSubmitting(false)
+
+        if (res.error) {
+            toast.error(res.error)
+        } else {
+            toast.success('Task updated successfully')
+            const updatedTask = {
+                ...selectedTask,
+                title: editedTitle,
+                assigned_to_id: editedAssignedTo || null,
+                notes: editedNotes,
+                // Refresh the assigned_to object for UI consistency
+                assigned_to: users.find((u: any) => u.id === editedAssignedTo)
+            }
+            setSelectedTask(updatedTask)
+            setTasks(tasks.map((t: any) => t.id === selectedTask.id ? updatedTask : t))
+            setIsEditing(false)
+        }
+    }
 
     // Add Task Handler
     const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -692,7 +744,18 @@ function PlannerModals({
             <Modal
                 isOpen={activeModal === 'detail'}
                 onClose={closeModals}
-                title={selectedTask?.title || 'Task Details'}
+                title={
+                    isEditing ? (
+                        <div className="flex items-center gap-2 flex-1 mr-8">
+                            <Input
+                                value={editedTitle}
+                                onChange={(e) => setEditedTitle(e.target.value)}
+                                className="h-9 font-black text-lg bg-white border-indigo-200 focus:ring-indigo-500"
+                                placeholder="Task Title"
+                            />
+                        </div>
+                    ) : selectedTask?.title || 'Task Details'
+                }
                 size="lg"
             >
                 {selectedTask && (
@@ -702,7 +765,7 @@ function PlannerModals({
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Status</span>
                                 <div className={cn(
                                     "inline-flex px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-tight",
-                                    selectedTask.status === 'New' ? "bg-blue-100 text-blue-700" :
+                                    (selectedTask.status === 'New' || selectedTask.status === 'Busy') ? "bg-blue-100 text-blue-700" :
                                         selectedTask.status === 'Waiting' ? "bg-amber-100 text-amber-700" :
                                             selectedTask.status === 'Completed' ? "bg-emerald-100 text-emerald-700" :
                                                 selectedTask.status === 'Deleted' ? "bg-red-100 text-red-700" :
@@ -717,19 +780,51 @@ function PlannerModals({
                             </div>
                             <div className="space-y-1">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Assigned To</span>
-                                <div className="text-sm font-black text-slate-900 truncate">
-                                    {selectedTask.assigned_to ? `${selectedTask.assigned_to.first_name} ${selectedTask.assigned_to.last_name}` : 'Unassigned'}
-                                </div>
+                                {isEditing ? (
+                                    <select
+                                        value={editedAssignedTo}
+                                        onChange={(e) => setEditedAssignedTo(e.target.value)}
+                                        className="w-full h-8 bg-white border-indigo-100 rounded-lg text-xs font-bold px-2 py-0 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    >
+                                        <option value="">Unassigned</option>
+                                        {users.map((u: any) => (
+                                            <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="text-sm font-black text-slate-900 truncate text-emerald-600">
+                                        {selectedTask.assigned_to ? `${selectedTask.assigned_to.first_name} ${selectedTask.assigned_to.last_name}` : 'Unassigned'}
+                                    </div>
+                                )}
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Handled By</span>
-                                <div className="text-sm font-black text-indigo-600 truncate">
-                                    {selectedTask.status === 'Completed'
-                                        ? (selectedTask.marked_done_by ? `${selectedTask.marked_done_by.first_name} ${selectedTask.marked_done_by.last_name}` : '-')
-                                        : selectedTask.status === 'Deleted'
-                                            ? (selectedTask.deleted_by ? `${selectedTask.deleted_by.first_name} ${selectedTask.deleted_by.last_name}` : '-')
-                                            : '-'}
-                                </div>
+                            <div className="space-y-1 text-right">
+                                {!isEditing && (
+                                    <Button
+                                        onClick={startEditing}
+                                        variant="outline"
+                                        className="h-8 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-black text-[10px] uppercase tracking-widest rounded-lg px-3"
+                                    >
+                                        <Edit2 className="w-3 h-3 mr-1.5" /> Edit Task
+                                    </Button>
+                                )}
+                                {isEditing && (
+                                    <div className="flex items-center gap-2 justify-end">
+                                        <Button
+                                            onClick={cancelEditing}
+                                            variant="ghost"
+                                            className="h-8 text-slate-400 hover:text-slate-600 font-black text-[10px] uppercase tracking-widest px-3"
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            onClick={handleSaveEdits}
+                                            disabled={submitting || !editedTitle.trim()}
+                                            className="h-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-lg px-4 shadow-lg shadow-indigo-100"
+                                        >
+                                            {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -797,7 +892,26 @@ function PlannerModals({
 
                             <div className="space-y-4 pt-4 relative">
                                 <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-50 -z-10" />
-                                {selectedTask.notes?.length > 0 ? (
+                                {isEditing ? (
+                                    editedNotes.map((note: any, idx: number) => (
+                                        <div key={idx} className="flex gap-4 group animate-in fade-in slide-in-from-left-2" style={{ animationDelay: `${idx * 50}ms` }}>
+                                            <div className="w-8 h-8 rounded-full bg-white border-2 border-indigo-200 flex items-center justify-center text-[8px] font-black text-indigo-600 shrink-0 shadow-sm">
+                                                {note.date}
+                                            </div>
+                                            <div className="flex-1">
+                                                <Textarea
+                                                    value={note.text}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...editedNotes]
+                                                        newNotes[idx] = { ...newNotes[idx], text: e.target.value }
+                                                        setEditedNotes(newNotes)
+                                                    }}
+                                                    className="min-h-[80px] text-sm font-medium text-slate-600 bg-white border-indigo-100 focus:ring-indigo-500 rounded-2xl p-4 shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : selectedTask.notes?.length > 0 ? (
                                     selectedTask.notes.map((note: any, idx: number) => (
                                         <div key={idx} className="flex gap-4 group">
                                             <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center text-[8px] font-black text-slate-400 shrink-0 group-hover:border-indigo-200 transition-colors">
