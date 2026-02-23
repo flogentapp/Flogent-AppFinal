@@ -707,7 +707,7 @@ function PlannerModals({
         setSubmitting(false)
         if (res.error) toast.error(res.error)
         else {
-            toast.success(sendEmail ? 'Task set to waiting & email reminder sent' : 'Task set to waiting')
+            toast.success(sendEmail ? 'Task set to waiting. You will be reminded 1 day before.' : 'Task set to waiting')
             closeModals()
             window.location.reload()
         }
@@ -1069,10 +1069,9 @@ function PlannerModals({
                     </div>
                     <Textarea
                         name="note"
-                        label="Reason for Waiting"
-                        required
+                        label="Reason for Waiting (Optional)"
                         className="min-h-[100px] focus:ring-amber-500"
-                        placeholder="Why are we waiting?"
+                        placeholder="Why are we waiting? (optional)"
                     />
 
                     <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 group cursor-pointer">

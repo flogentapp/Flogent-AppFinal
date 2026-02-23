@@ -213,6 +213,7 @@ export async function addPlannerNote(taskId: string, noteText: string) {
     return { success: true }
 }
 
+// Set Waiting Status
 export async function setPlannerTaskWaiting(taskId: string, waitDays: number, reason: string, sendEmail: boolean) {
     const admin = createAdminClient()
     const supabase = await createClient()
@@ -223,53 +224,36 @@ export async function setPlannerTaskWaiting(taskId: string, waitDays: number, re
     returnDateObj.setDate(returnDateObj.getDate() + waitDays)
     const returnDateStr = returnDateObj.toISOString().split('T')[0]
 
-    // 1. Update Task Status
+    // Calculate reminder date (1 day before)
+    const reminderDateObj = new Date(returnDateStr)
+    reminderDateObj.setDate(reminderDateObj.getDate() - 1)
+    const reminderDateStr = reminderDateObj.toISOString().split('T')[0]
+
+    // 1. Update Task Status & Reminder
     const { data: task, error: fetchErr } = await admin
-        .from('planner_tasks')
-        .select('*, project:projects(name)')
-        .eq('id', taskId)
-        .single()
-
-    if (fetchErr) return { error: 'Task not found' }
-
-    const { error: updateErr } = await admin
         .from('planner_tasks')
         .update({
             status: 'Waiting',
-            start_by: returnDateStr
+            start_by: returnDateStr,
+            reminder_email_requested: sendEmail,
+            reminder_date: sendEmail ? reminderDateStr : null,
+            reminder_email_sent: false,
+            reminder_user_id: sendEmail ? user.id : null
         })
         .eq('id', taskId)
+        .select('*, project:projects(name)')
+        .single()
 
-    if (updateErr) return { error: updateErr.message }
+    if (fetchErr) return { error: fetchErr.message }
 
     // 2. Add Note
+    const reasonText = reason?.trim() ? ` Reason: ${reason}` : ''
     const newNote = {
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
-        text: `Status set to Waiting for ${waitDays} days. Reason: ${reason}`
+        text: `Status set to Waiting for ${waitDays} days.${reasonText}`
     }
     const updatedNotes = [newNote, ...(task.notes || [])]
     await admin.from('planner_tasks').update({ notes: updatedNotes }).eq('id', taskId)
-
-    // 3. Optional Email
-    if (sendEmail) {
-        const { sendWaitingReminderEmail } = await import('@/lib/mailjet')
-        const firstName = user.user_metadata?.first_name || 'User'
-        const email = user.email!
-
-        const emailRes = await sendWaitingReminderEmail(
-            email,
-            firstName,
-            task.title,
-            task.project?.name || 'General',
-            waitDays,
-            new Date(returnDateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
-            reason
-        )
-
-        if (!emailRes.success) {
-            console.error('Email failed but task status updated:', emailRes.error)
-        }
-    }
 
     revalidatePath('/planner')
     return { success: true }
