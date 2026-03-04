@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, getISOWeek, getYear } from 'date-fns'
-import { Download, Search, X, Users, FolderOpen, Calendar, List, ChevronDown, ChevronUp } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Download, ChevronDown, ChevronUp, Users, FolderOpen, Calendar, List, X, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,86 +23,138 @@ type ReportType = 'employee' | 'project' | 'weekly' | 'detail'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function userName(entry: Entry) {
-  return `${entry.profiles?.first_name ?? ''} ${entry.profiles?.last_name ?? ''}`.trim()
+function userName(e: Entry) {
+  return `${e.profiles?.first_name ?? ''} ${e.profiles?.last_name ?? ''}`.trim() || 'Unknown'
 }
-
-function projectName(entry: Entry) {
-  return entry.projects?.name ?? 'Unassigned'
-}
-
-function deptName(entry: Entry) {
-  return entry.projects?.departments?.name ?? 'Unassigned'
-}
-
+function projectName(e: Entry) { return e.projects?.name ?? 'Unassigned' }
+function deptName(e: Entry) { return e.projects?.departments?.name ?? 'Unassigned' }
 function weekLabel(dateStr: string) {
   const d = parseISO(dateStr)
   return `${getYear(d)}-W${String(getISOWeek(d)).padStart(2, '0')}`
+}
+
+// ─── Multi-select Dropdown ────────────────────────────────────────────────────
+
+function MultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string
+  options: string[]
+  selected: string[]
+  onChange: (v: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const toggle = (val: string) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter(v => v !== val))
+    } else {
+      onChange([...selected, val])
+    }
+  }
+
+  const allSelected = selected.length === 0
+  const displayLabel = allSelected ? 'All' : selected.length === 1 ? selected[0] : `${selected.length} selected`
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{label}</div>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between h-10 px-3 rounded-xl bg-slate-50 border border-transparent hover:border-indigo-200 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+      >
+        <span className={allSelected ? 'text-slate-400' : 'text-slate-800'}>{displayLabel}</span>
+        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full mt-1 w-full min-w-[200px] bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden">
+          {selected.length > 0 && (
+            <button
+              onClick={() => onChange([])}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-black text-rose-500 hover:bg-rose-50 border-b border-slate-50 transition-colors"
+            >
+              <X className="w-3 h-3" /> Clear selection
+            </button>
+          )}
+          <div className="max-h-60 overflow-y-auto">
+            {options.map(opt => {
+              const checked = selected.includes(opt)
+              return (
+                <button
+                  key={opt}
+                  onClick={() => toggle(opt)}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-bold hover:bg-indigo-50 transition-colors ${checked ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-700'}`}
+                >
+                  <span>{opt}</span>
+                  {checked && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ReportsClient({ initialData }: { initialData: Entry[] }) {
 
-  // Filters
   const [reportType, setReportType] = useState<ReportType>('employee')
-  const [search, setSearch] = useState('')
-  const [selectedProject, setSelectedProject] = useState('All')
-  const [selectedUser, setSelectedUser] = useState('All')
-  const [selectedDept, setSelectedDept] = useState('All')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
   const [dateRange, setDateRange] = useState({
     start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
     end: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
   })
+  const [selEmployees, setSelEmployees] = useState<string[]>([])
+  const [selProjects, setSelProjects] = useState<string[]>([])
+  const [selDepts, setSelDepts] = useState<string[]>([])
 
-  // UI state for expandable rows
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
-  // ── Filter options ──────────────────────────────────────────────────────────
   const options = useMemo(() => {
+    const employees = new Set<string>()
     const projects = new Set<string>()
-    const users = new Set<string>()
     const depts = new Set<string>()
-
-    initialData.forEach(item => {
-      const p = projectName(item)
-      const u = userName(item)
-      const d = deptName(item)
-      if (p) projects.add(p)
-      if (u) users.add(u)
-      if (d) depts.add(d)
+    initialData.forEach(e => {
+      employees.add(userName(e))
+      projects.add(projectName(e))
+      depts.add(deptName(e))
     })
-
     return {
-      projects: ['All', ...Array.from(projects).sort()],
-      users: ['All', ...Array.from(users).sort()],
-      depts: ['All', ...Array.from(depts).sort()],
+      employees: Array.from(employees).sort(),
+      projects: Array.from(projects).sort(),
+      depts: Array.from(depts).sort(),
     }
   }, [initialData])
 
-  // ── Filtered data ───────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    return initialData.filter(item => {
-      const d = parseISO(item.date)
-      const start = parseISO(dateRange.start)
-      const end = parseISO(dateRange.end)
-      if (!isWithinInterval(d, { start, end })) return false
-      if (selectedProject !== 'All' && projectName(item) !== selectedProject) return false
-      if (selectedUser !== 'All' && userName(item) !== selectedUser) return false
-      if (selectedDept !== 'All' && deptName(item) !== selectedDept) return false
-      if (search) {
-        const q = search.toLowerCase()
-        if (
-          !item.description?.toLowerCase().includes(q) &&
-          !projectName(item).toLowerCase().includes(q) &&
-          !userName(item).toLowerCase().includes(q)
-        ) return false
-      }
+    return initialData.filter(e => {
+      const d = parseISO(e.date)
+      if (!isWithinInterval(d, { start: parseISO(dateRange.start), end: parseISO(dateRange.end) })) return false
+      if (selEmployees.length > 0 && !selEmployees.includes(userName(e))) return false
+      if (selProjects.length > 0 && !selProjects.includes(projectName(e))) return false
+      if (selDepts.length > 0 && !selDepts.includes(deptName(e))) return false
       return true
     })
-  }, [initialData, search, selectedProject, selectedUser, selectedDept, dateRange])
+  }, [initialData, dateRange, selEmployees, selProjects, selDepts])
 
   const totalHours = filtered.reduce((s, e) => s + (Number(e.hours) || 0), 0)
+  const activeFilterCount = selEmployees.length + selProjects.length + selDepts.length
 
   const toggle = (key: string) => {
     const next = new Set(expanded)
@@ -112,33 +162,32 @@ export function ReportsClient({ initialData }: { initialData: Entry[] }) {
     setExpanded(next)
   }
 
-  // ── Excel export ────────────────────────────────────────────────────────────
   function exportExcel() {
     const wb = XLSX.utils.book_new()
 
-    if (reportType === 'employee') {
-      const rows = buildEmployeeRows(filtered)
-      const ws = XLSX.utils.json_to_sheet(rows)
-      XLSX.utils.book_append_sheet(wb, ws, 'By Employee')
-    } else if (reportType === 'project') {
-      const rows = buildProjectRows(filtered)
-      const ws = XLSX.utils.json_to_sheet(rows)
-      XLSX.utils.book_append_sheet(wb, ws, 'By Project')
-    } else if (reportType === 'weekly') {
-      const rows = buildWeeklyRows(filtered)
-      const ws = XLSX.utils.json_to_sheet(rows)
-      XLSX.utils.book_append_sheet(wb, ws, 'Weekly Summary')
-    } else {
-      const rows = buildDetailRows(filtered)
-      const ws = XLSX.utils.json_to_sheet(rows)
-      XLSX.utils.book_append_sheet(wb, ws, 'Detailed Log')
-    }
+    const empRows = buildEmployeeRows(filtered)
+    const ws1 = XLSX.utils.json_to_sheet(empRows)
+    ws1['!autofilter'] = { ref: `A1:H${empRows.length + 1}` }
+    XLSX.utils.book_append_sheet(wb, ws1, 'By Employee')
 
-    const filename = `flogent-report-${reportType}-${dateRange.start}-to-${dateRange.end}.xlsx`
-    XLSX.writeFile(wb, filename)
+    const projRows = buildProjectRows(filtered)
+    const ws2 = XLSX.utils.json_to_sheet(projRows)
+    ws2['!autofilter'] = { ref: `A1:H${projRows.length + 1}` }
+    XLSX.utils.book_append_sheet(wb, ws2, 'By Project')
+
+    const weekRows = buildWeeklyRows(filtered)
+    const ws3 = XLSX.utils.json_to_sheet(weekRows)
+    ws3['!autofilter'] = { ref: `A1:H${weekRows.length + 1}` }
+    XLSX.utils.book_append_sheet(wb, ws3, 'Weekly Summary')
+
+    const detailRows = buildDetailRows(filtered)
+    const ws4 = XLSX.utils.json_to_sheet(detailRows)
+    ws4['!autofilter'] = { ref: `A1:H${detailRows.length + 1}` }
+    XLSX.utils.book_append_sheet(wb, ws4, 'Detailed Log')
+
+    XLSX.writeFile(wb, `flogent-report-${dateRange.start}-to-${dateRange.end}.xlsx`)
   }
 
-  // ── Report type tabs ────────────────────────────────────────────────────────
   const tabs: { key: ReportType; label: string; icon: React.ElementType }[] = [
     { key: 'employee', label: 'By Employee', icon: Users },
     { key: 'project', label: 'By Project', icon: FolderOpen },
@@ -149,7 +198,7 @@ export function ReportsClient({ initialData }: { initialData: Entry[] }) {
   return (
     <div className="space-y-6">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Timesheet Reports</h1>
@@ -177,7 +226,63 @@ export function ReportsClient({ initialData }: { initialData: Entry[] }) {
         </div>
       </div>
 
-      {/* ── Report type selector ────────────────────────────────────────────── */}
+      {/* Filters */}
+      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <div className="text-sm font-black text-slate-700 uppercase tracking-widest">Filters</div>
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => { setSelEmployees([]); setSelProjects([]); setSelDepts([]) }}
+              className="text-xs font-black text-rose-500 hover:text-rose-600 flex items-center gap-1 transition-colors"
+            >
+              <X className="w-3 h-3" /> Clear all filters
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">From</div>
+            <input
+              type="date"
+              value={dateRange.start}
+              onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))}
+              className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-transparent text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-200 transition-all"
+            />
+          </div>
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">To</div>
+            <input
+              type="date"
+              value={dateRange.end}
+              onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))}
+              className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-transparent text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-200 transition-all"
+            />
+          </div>
+          <MultiSelect label="Employee" options={options.employees} selected={selEmployees} onChange={setSelEmployees} />
+          <MultiSelect label="Project" options={options.projects} selected={selProjects} onChange={setSelProjects} />
+          <MultiSelect label="Department" options={options.depts} selected={selDepts} onChange={setSelDepts} />
+        </div>
+
+        {/* Active filter chips */}
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-50">
+            {[
+              ...selEmployees.map(v => ({ type: 'Employee', value: v, clear: () => setSelEmployees(p => p.filter(x => x !== v)) })),
+              ...selProjects.map(v => ({ type: 'Project', value: v, clear: () => setSelProjects(p => p.filter(x => x !== v)) })),
+              ...selDepts.map(v => ({ type: 'Dept', value: v, clear: () => setSelDepts(p => p.filter(x => x !== v)) })),
+            ].map((chip, i) => (
+              <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-black text-indigo-700">
+                <span className="text-indigo-400">{chip.type}:</span> {chip.value}
+                <button onClick={chip.clear} className="ml-1 text-indigo-400 hover:text-indigo-700 transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Report type tabs */}
       <div className="flex flex-wrap gap-3">
         {tabs.map(tab => {
           const Icon = tab.icon
@@ -199,48 +304,7 @@ export function ReportsClient({ initialData }: { initialData: Entry[] }) {
         })}
       </div>
 
-      {/* ── Filters ─────────────────────────────────────────────────────────── */}
-      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase block mb-2 tracking-widest">From</label>
-            <Input type="date" value={dateRange.start} onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))} className="rounded-xl bg-slate-50 border-transparent" />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase block mb-2 tracking-widest">To</label>
-            <Input type="date" value={dateRange.end} onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} className="rounded-xl bg-slate-50 border-transparent" />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase block mb-2 tracking-widest">Department</label>
-            <select className="w-full h-10 px-3 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>
-              {options.depts.map(d => <option key={d}>{d}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase block mb-2 tracking-widest">Project</label>
-            <select className="w-full h-10 px-3 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
-              {options.projects.map(p => <option key={p}>{p}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 pt-4 border-t border-slate-50">
-          <div className="lg:col-span-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase block mb-2 tracking-widest">Employee</label>
-            <select className="w-full h-10 px-3 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20" value={selectedUser} onChange={e => setSelectedUser(e.target.value)}>
-              {options.users.map(u => <option key={u}>{u}</option>)}
-            </select>
-          </div>
-          <div className="lg:col-span-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase block mb-2 tracking-widest">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Project, name, description..." value={search} onChange={e => setSearch(e.target.value)} className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border-transparent text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Report view ─────────────────────────────────────────────────────── */}
+      {/* Report content */}
       {filtered.length === 0 ? (
         <div className="bg-white p-20 text-center rounded-[2rem] border border-dashed border-slate-200">
           <X className="w-12 h-12 text-slate-200 mx-auto mb-4" />
@@ -258,7 +322,7 @@ export function ReportsClient({ initialData }: { initialData: Entry[] }) {
   )
 }
 
-// ─── Report: By Employee ──────────────────────────────────────────────────────
+// ─── By Employee ──────────────────────────────────────────────────────────────
 
 function EmployeeReport({ data, expanded, toggle }: { data: Entry[]; expanded: Set<string>; toggle: (k: string) => void }) {
   const groups = useMemo(() => {
@@ -305,16 +369,16 @@ function EmployeeReport({ data, expanded, toggle }: { data: Entry[]; expanded: S
   )
 }
 
-// ─── Report: By Project ───────────────────────────────────────────────────────
+// ─── By Project ───────────────────────────────────────────────────────────────
 
 function ProjectReport({ data, expanded, toggle }: { data: Entry[]; expanded: Set<string>; toggle: (k: string) => void }) {
   const groups = useMemo(() => {
     const map: Record<string, { name: string; dept: string; total: number; entries: Entry[] }> = {}
     data.forEach(e => {
-      const pid = e.projects?.name ?? 'unassigned'
-      if (!map[pid]) map[pid] = { name: projectName(e), dept: deptName(e), total: 0, entries: [] }
-      map[pid].total += e.hours
-      map[pid].entries.push(e)
+      const k = projectName(e)
+      if (!map[k]) map[k] = { name: k, dept: deptName(e), total: 0, entries: [] }
+      map[k].total += e.hours
+      map[k].entries.push(e)
     })
     return Object.entries(map).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.total - a.total)
   }, [data])
@@ -325,7 +389,7 @@ function ProjectReport({ data, expanded, toggle }: { data: Entry[]; expanded: Se
         <div key={g.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
           <button onClick={() => toggle(g.id)} className="w-full flex items-center justify-between p-6 sm:p-8 text-left hover:bg-slate-50/50 transition-colors group">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-md shadow-violet-100">
+              <div className="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white font-black shadow-md shadow-violet-100">
                 <FolderOpen className="w-6 h-6" />
               </div>
               <div>
@@ -352,7 +416,7 @@ function ProjectReport({ data, expanded, toggle }: { data: Entry[]; expanded: Se
   )
 }
 
-// ─── Report: Weekly Summary ───────────────────────────────────────────────────
+// ─── Weekly Summary ───────────────────────────────────────────────────────────
 
 function WeeklyReport({ data, expanded, toggle }: { data: Entry[]; expanded: Set<string>; toggle: (k: string) => void }) {
   const weeks = useMemo(() => {
@@ -377,7 +441,9 @@ function WeeklyReport({ data, expanded, toggle }: { data: Entry[]; expanded: Set
               </div>
               <div>
                 <div className="font-black text-slate-900">{w.label}</div>
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{w.entries.length} entries across {new Set(w.entries.map(e => e.user_id)).size} people</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                  {w.entries.length} entries · {new Set(w.entries.map(e => e.user_id)).size} people
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-6">
@@ -399,11 +465,10 @@ function WeeklyReport({ data, expanded, toggle }: { data: Entry[]; expanded: Set
   )
 }
 
-// ─── Report: Detailed Log ─────────────────────────────────────────────────────
+// ─── Detailed Log ─────────────────────────────────────────────────────────────
 
 function DetailReport({ data }: { data: Entry[] }) {
   const sorted = useMemo(() => [...data].sort((a, b) => b.date.localeCompare(a.date)), [data])
-
   return (
     <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -444,7 +509,7 @@ function DetailReport({ data }: { data: Entry[] }) {
   )
 }
 
-// ─── Shared: Entry table (used inside expandable rows) ────────────────────────
+// ─── Shared entry table ───────────────────────────────────────────────────────
 
 function EntryTable({ entries, showEmployee }: { entries: Entry[]; showEmployee: boolean }) {
   const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date))
@@ -454,8 +519,10 @@ function EntryTable({ entries, showEmployee }: { entries: Entry[]; showEmployee:
         <thead>
           <tr className="text-[10px] font-black text-slate-300 uppercase tracking-[0.15em] border-b border-slate-50">
             <th className="px-4 py-3 text-left">Date</th>
-            {showEmployee && <th className="px-4 py-3 text-left">Employee</th>}
-            {!showEmployee && <th className="px-4 py-3 text-left">Project</th>}
+            {showEmployee
+              ? <th className="px-4 py-3 text-left">Employee</th>
+              : <th className="px-4 py-3 text-left">Project</th>
+            }
             <th className="px-4 py-3 text-left">Status</th>
             <th className="px-4 py-3 text-left">Description</th>
             <th className="px-4 py-3 text-right">Hours</th>
@@ -465,8 +532,10 @@ function EntryTable({ entries, showEmployee }: { entries: Entry[]; showEmployee:
           {sorted.map(e => (
             <tr key={e.id} className="text-sm hover:bg-slate-50/50">
               <td className="px-4 py-3 font-bold text-slate-500 whitespace-nowrap">{format(parseISO(e.date), 'MMM d, yyyy')}</td>
-              {showEmployee && <td className="px-4 py-3 font-bold text-slate-900">{userName(e)}</td>}
-              {!showEmployee && <td className="px-4 py-3 font-bold text-indigo-600">{projectName(e)}</td>}
+              {showEmployee
+                ? <td className="px-4 py-3 font-bold text-slate-900">{userName(e)}</td>
+                : <td className="px-4 py-3 font-bold text-indigo-600">{projectName(e)}</td>
+              }
               <td className="px-4 py-3"><StatusBadge status={e.status} /></td>
               <td className="px-4 py-3 text-slate-400 italic text-xs max-w-xs truncate">{e.description || '-'}</td>
               <td className="px-4 py-3 text-right font-black text-slate-900">{Number(e.hours).toFixed(1)}h</td>
@@ -478,41 +547,30 @@ function EntryTable({ entries, showEmployee }: { entries: Entry[]; showEmployee:
   )
 }
 
-// ─── Excel row builders ───────────────────────────────────────────────────────
+// ─── Excel builders ───────────────────────────────────────────────────────────
+
+function buildDetailRows(data: Entry[]) {
+  return [...data].sort((a, b) => b.date.localeCompare(a.date)).map(e => ({
+    Date: e.date,
+    Employee: userName(e),
+    Project: projectName(e),
+    Department: deptName(e),
+    Status: e.status,
+    Hours: Number(e.hours).toFixed(2),
+    Description: e.description || '',
+    'Additional Work': e.is_additional_work ? 'Yes' : 'No',
+  }))
+}
 
 function buildEmployeeRows(data: Entry[]) {
-  // Group by employee then flatten with subtotals
   const map: Record<string, Entry[]> = {}
-  data.forEach(e => {
-    const k = userName(e)
-    if (!map[k]) map[k] = []
-    map[k].push(e)
-  })
-
+  data.forEach(e => { const k = userName(e); if (!map[k]) map[k] = []; map[k].push(e) })
   const rows: any[] = []
   Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).forEach(([name, entries]) => {
     entries.sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
-      rows.push({
-        Employee: name,
-        Date: e.date,
-        Project: projectName(e),
-        Department: deptName(e),
-        Status: e.status,
-        Hours: Number(e.hours).toFixed(2),
-        Description: e.description || '',
-        'Additional Work': e.is_additional_work ? 'Yes' : 'No',
-      })
+      rows.push({ Employee: name, Date: e.date, Project: projectName(e), Department: deptName(e), Status: e.status, Hours: Number(e.hours).toFixed(2), Description: e.description || '', 'Additional Work': e.is_additional_work ? 'Yes' : 'No' })
     })
-    rows.push({
-      Employee: `TOTAL: ${name}`,
-      Date: '',
-      Project: '',
-      Department: '',
-      Status: '',
-      Hours: entries.reduce((s, e) => s + e.hours, 0).toFixed(2),
-      Description: '',
-      'Additional Work': '',
-    })
+    rows.push({ Employee: `TOTAL: ${name}`, Date: '', Project: '', Department: '', Status: '', Hours: entries.reduce((s, e) => s + e.hours, 0).toFixed(2), Description: '', 'Additional Work': '' })
     rows.push({})
   })
   return rows
@@ -520,36 +578,13 @@ function buildEmployeeRows(data: Entry[]) {
 
 function buildProjectRows(data: Entry[]) {
   const map: Record<string, Entry[]> = {}
-  data.forEach(e => {
-    const k = projectName(e)
-    if (!map[k]) map[k] = []
-    map[k].push(e)
-  })
-
+  data.forEach(e => { const k = projectName(e); if (!map[k]) map[k] = []; map[k].push(e) })
   const rows: any[] = []
   Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).forEach(([proj, entries]) => {
     entries.sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
-      rows.push({
-        Project: proj,
-        Department: deptName(e),
-        Date: e.date,
-        Employee: userName(e),
-        Status: e.status,
-        Hours: Number(e.hours).toFixed(2),
-        Description: e.description || '',
-        'Additional Work': e.is_additional_work ? 'Yes' : 'No',
-      })
+      rows.push({ Project: proj, Department: deptName(e), Date: e.date, Employee: userName(e), Status: e.status, Hours: Number(e.hours).toFixed(2), Description: e.description || '', 'Additional Work': e.is_additional_work ? 'Yes' : 'No' })
     })
-    rows.push({
-      Project: `TOTAL: ${proj}`,
-      Department: '',
-      Date: '',
-      Employee: '',
-      Status: '',
-      Hours: entries.reduce((s, e) => s + e.hours, 0).toFixed(2),
-      Description: '',
-      'Additional Work': '',
-    })
+    rows.push({ Project: `TOTAL: ${proj}`, Department: '', Date: '', Employee: '', Status: '', Hours: entries.reduce((s, e) => s + e.hours, 0).toFixed(2), Description: '', 'Additional Work': '' })
     rows.push({})
   })
   return rows
@@ -557,54 +592,16 @@ function buildProjectRows(data: Entry[]) {
 
 function buildWeeklyRows(data: Entry[]) {
   const map: Record<string, Entry[]> = {}
-  data.forEach(e => {
-    const wk = weekLabel(e.date)
-    if (!map[wk]) map[wk] = []
-    map[wk].push(e)
-  })
-
+  data.forEach(e => { const wk = weekLabel(e.date); if (!map[wk]) map[wk] = []; map[wk].push(e) })
   const rows: any[] = []
   Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).forEach(([wk, entries]) => {
     entries.sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
-      rows.push({
-        'ISO Week': wk,
-        Date: e.date,
-        Employee: userName(e),
-        Project: projectName(e),
-        Department: deptName(e),
-        Status: e.status,
-        Hours: Number(e.hours).toFixed(2),
-        Description: e.description || '',
-      })
+      rows.push({ 'ISO Week': wk, Date: e.date, Employee: userName(e), Project: projectName(e), Department: deptName(e), Status: e.status, Hours: Number(e.hours).toFixed(2), Description: e.description || '' })
     })
-    rows.push({
-      'ISO Week': `TOTAL: ${wk}`,
-      Date: '',
-      Employee: '',
-      Project: '',
-      Department: '',
-      Status: '',
-      Hours: entries.reduce((s, e) => s + e.hours, 0).toFixed(2),
-      Description: '',
-    })
+    rows.push({ 'ISO Week': `TOTAL: ${wk}`, Date: '', Employee: '', Project: '', Department: '', Status: '', Hours: entries.reduce((s, e) => s + e.hours, 0).toFixed(2), Description: '' })
     rows.push({})
   })
   return rows
-}
-
-function buildDetailRows(data: Entry[]) {
-  return [...data]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .map(e => ({
-      Date: e.date,
-      Employee: userName(e),
-      Project: projectName(e),
-      Department: deptName(e),
-      Status: e.status,
-      Hours: Number(e.hours).toFixed(2),
-      Description: e.description || '',
-      'Additional Work': e.is_additional_work ? 'Yes' : 'No',
-    }))
 }
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
